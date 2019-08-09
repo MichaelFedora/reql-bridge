@@ -1,0 +1,36 @@
+{
+  "name": "reql-sqlite3",
+  "version": "1.0.0",
+  "description": "ReQL(-like) interpreter on for SQLite3",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "test": "tsc && node lib/test.js",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MichaelFedora/reql-sqlite3.git"
+  },
+  "keywords": [
+    "reql",
+    "sqlite3",
+    "database"
+  ],
+  "author": "Michael Fedora",
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/MichaelFedora/reql-sqlite3/issues"
+  },
+  "homepage": "https://github.com/MichaelFedora/reql-sqlite3#readme",
+  "dependencies": {
+    "@log4js-node/log4js-api": "^1.0.2",
+    "sqlite3": "^4.0.9"
+  },
+  "devDependencies": {
+    "@types/sqlite3": "^3.1.5",
+    "log4js": "^4.5.1",
+    "source-map-support": "^0.5.13",
+    "typescript": "^3.5.3"
+  }
+}
