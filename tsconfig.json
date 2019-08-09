@@ -9,7 +9,6 @@
     "moduleResolution": "node",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "baseUrl": "src",
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "strictNullChecks": false,

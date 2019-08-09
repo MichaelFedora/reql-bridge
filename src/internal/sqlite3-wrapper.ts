@@ -7,10 +7,10 @@ export interface WrappedSQLite3Database {
   configure(option: 'busyTimeout', value: number): void;
   run(sql: string, params?: { [key: string]: any }): Promise<void>;
   get<T = any>(sql: string, params?: { [key: string]: any }): Promise<T>;
-  all<T = any>(sql: string, params?: { [key: string]: any }): Promise<T[]>
-  each<T = any>(cb: (row: T) => void, sql: string, params?: { [key: string]: any }): Promise<number>
-  exec(sql: string): Promise<void>
-  prepare(sql: string, params?: { [key: string]: any }): Promise<WrappedSQLite3Statement>
+  all<T = any>(sql: string, params?: { [key: string]: any }): Promise<T[]>;
+  each<T = any>(cb: (row: T) => void, sql: string, params?: { [key: string]: any }): Promise<number>;
+  exec(sql: string): Promise<void>;
+  prepare(sql: string, params?: { [key: string]: any }): Promise<WrappedSQLite3Statement>;
 
   // extensions
   getPrimaryKey(tableName: string): Promise<string>;

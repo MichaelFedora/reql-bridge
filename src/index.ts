@@ -1,4 +1,4 @@
-import { create } from './reql-sqlite3';
+import { create } from './data/database';
 
 export { create };
 export default create;

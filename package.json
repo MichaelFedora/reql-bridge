@@ -1,12 +1,12 @@
 {
   "name": "reql-sqlite3",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "ReQL(-like) interpreter for SQLite3",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
-    "test": "tsc && node lib/test.js",
-    "build": "tsc"
+    "test": "del-cli lib && tsc && node lib/test.js",
+    "build": "del-cli lib && tsc"
   },
   "repository": {
     "type": "git",
@@ -29,8 +29,10 @@
   },
   "devDependencies": {
     "@types/sqlite3": "^3.1.5",
+    "del-cli": "^2.0.0",
     "log4js": "^4.5.1",
     "source-map-support": "^0.5.13",
+    "tslint": "^5.18.0",
     "typescript": "^3.5.3"
   }
 }

@@ -1,5 +1,5 @@
 import { getLogger, configure } from 'log4js';
-import { create as createReQLSQLite3DB } from './reql-sqlite3';
+import { create as createReQLSQLite3DB } from './data/database';
 
 const level = 'trace';
 const layout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %m' };
@@ -61,7 +61,8 @@ interface TableType { key: string; value: object; count: number; sale: boolean; 
   logger.info('testTbl: ', await testTbl.run());
   logger.info('testTbl.get("blah"): ', await testTbl.get('foo').run());
   logger.info('testTbl.getAll({ type: "bar" }, { index: "value" }): ', await testTbl.getAll({ type: 'bar' }, { index: 'value' }).run());
-  logger.info('testTbl.insert(update): ', await testTbl.insert({ key: 'lime', value: { type: 'bar' } } as any, { conflict: 'update' }).run());
+  logger.info('testTbl.insert(update): ',
+    await testTbl.insert({ key: 'lime', value: { type: 'bar' } } as any, { conflict: 'update' }).run());
   logger.info('testTbl: ', await testTbl.run());
   logger.info('testTbl.limit(2): ', await testTbl.limit(2).run());
   logger.info('testTbl.pluck("key", "count").filter({ value: { type: bar } }): ',
