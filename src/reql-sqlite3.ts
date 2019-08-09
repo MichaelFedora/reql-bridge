@@ -69,6 +69,13 @@ function coerceCorrectReturn<T = any>(obj: any, types: SchemaEntry[]): T {
       case 'object':
         boop[key] = JSON.parse(obj[key]);
         break;
+      case 'any':
+        try {
+          boop[key] = JSON.parse(obj[key]);
+        } catch(e) {
+          boop[key] = obj[key];
+        }
+        break;
       default:
         throw new Error('Unknown type for key "' + key + '"!');
     }
@@ -93,6 +100,15 @@ abstract class SQLite3DatumPartial<T = any> implements DatumPartial<T> {
   protected query: { readonly cmd: string, readonly params?: readonly Value<any>[] }[] = [];
 
   abstract _sel<U extends string | number>(attribute: Value<U>): U extends keyof T ? SQLite3DatumPartial<T[U]> : SQLite3DatumPartial<any>;
+
+  // TRANSFORMATION
+
+  map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): T extends any[] ? Datum<U[]> : never {
+    this.query.push({ cmd: 'map', params: [predicate] });
+    return this as any;
+  }
+
+  // LOGIC
 
   eq(...values: Value<T>[]): Datum<boolean> {
     this.query.push({ cmd: 'eq', params: values });
@@ -230,6 +246,9 @@ class SQLite3QueryDatumPartial<T = any> extends SQLite3DatumPartial<T> implement
           else
             sel = params[0].slice(1, -1);
           break;
+
+        case 'map':
+          throw new Error('Cannot map filter documents in SQLite3!');
 
         case 'not':
           if(query)
@@ -424,63 +443,74 @@ class SQLite3StaticDatumPartial<T = any> extends SQLite3DatumPartial<T> implemen
       }
 
       switch(q.cmd) {
+
+        case 'map':
+          if(!(value instanceof Array))
+            throw new Error('Cannot map a non-array value!');
+          const newv = [];
+          for(const subv of value) {
+            newv.push(await resolveHValue((params[0] as (doc: Datum<typeof subv>) => Datum<any>)(createStaticDatum(subv))));
+          }
+          value = newv;
+          break;
+
         case 'sel':
-            value = value[q.params[0]];
+            value = value[params[0]];
           break;
 
         case 'eq':
-            value = !q.params.find(a => a !== value);
+            value = !params.find(a => a !== value);
           break;
         case 'ne':
-            value = Boolean(q.params.find(a => a !== value));
+            value = Boolean(params.find(a => a !== value));
           break;
 
         case 'or':
-          value = Boolean(q.params.reduce((acc, v) => acc || v, value));
+          value = Boolean(params.reduce((acc, v) => acc || v, value));
           break;
         case 'and':
-          value = Boolean(q.params.reduce((acc, v) => acc && v, value));
+          value = Boolean(params.reduce((acc, v) => acc && v, value));
           break;
 
         case 'add':
-          value = q.params.reduce((acc, v) => acc + value, value);
+          value = params.reduce((acc, v) => acc + value, value);
           break;
         case 'sub':
-          value = q.params.reduce((acc, v) => acc - value, value);
+          value = params.reduce((acc, v) => acc - value, value);
           break;
         case 'mul':
-          value = q.params.reduce((acc, v) => acc * v, value);
+          value = params.reduce((acc, v) => acc * v, value);
           break;
         case 'div':
-          value = q.params.reduce((acc, v) => acc / v, value);
+          value = params.reduce((acc, v) => acc / v, value);
           break;
         case 'mod':
-          value = q.params.reduce((acc, v) => acc % v, value);
+          value = params.reduce((acc, v) => acc % v, value);
           break;
 
         case 'gt':
-          value = !q.params.find((v, i, arr) => {
+          value = !params.find((v, i, arr) => {
             if(i === 0)
               return value <= v;
             else return arr[i - 1] <= v;
           });
           break;
         case 'lt':
-          value = !q.params.find((v, i, arr) => {
+          value = !params.find((v, i, arr) => {
             if(i === 0)
               return value >= v;
             else return arr[i - 1] >= v;
           });
           break;
         case 'ge':
-          value = !q.params.find((v, i, arr) => {
+          value = !params.find((v, i, arr) => {
             if(i === 0)
               return value < v;
             else return arr[i - 1] < v;
           });
           break;
         case 'le':
-          value = !q.params.find((v, i, arr) => {
+          value = !params.find((v, i, arr) => {
             if(i === 0)
               return value > v;
             else return arr[i - 1] > v;
@@ -647,15 +677,23 @@ abstract class SQLite3Stream<T = any> implements Stream<T> {
     return this;
   }
 
+  map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): Stream<U> {
+    this.query.push({ cmd: 'map', params: [predicate] });
+    return this as any;
+  }
+
   distinct(): Stream<T> {
     if(!this.query.find(q => q.cmd === 'distinct'))
       this.query.push({ cmd: 'distinct' });
     return this;
   }
 
-  limit(n: Value<number>): Query<T[]> {
+  limit(n: Value<number>): Stream<T> {
+    if(this.query.find(a => a.cmd === 'imit'))
+      throw new Error('Cannot set a limit after having already set one!');
+
     this.query.push({ cmd: 'limit', params: [n] });
-    return createQuery(() => this.run());
+    return this as any;
   }
 
   pluck(...fields: string[]): Stream<Partial<T>> {
@@ -666,7 +704,7 @@ abstract class SQLite3Stream<T = any> implements Stream<T> {
     } else {
       this.query.push({ cmd: 'pluck', params: fields });
     }
-    return this as Stream<Partial<T>>;
+    return this as any;
   }
 
   protected async computeQuery(): Promise<{ select?: string, post?: string, limit?: number, kill?: boolean }> {
@@ -680,6 +718,7 @@ abstract class SQLite3Stream<T = any> implements Stream<T> {
     const select = (distinct ? 'DISTINCT ' : '') + (pluck ? pluck.params.map(a => `[${a}]`).join(', ') : '*');
 
     let post = ``;
+    let limit = undefined;
     let cmdsApplied = 0;
     for(const q of this.query) {
       switch(q.cmd) {
@@ -708,21 +747,23 @@ abstract class SQLite3Stream<T = any> implements Stream<T> {
           } // if it's true, we're g2g anyways
           cmdsApplied++;
           break;
+        case 'map':
         case 'distinct':
         case 'pluck':
           break;
         case 'limit':
-          return { select, post: post ? post + `)` : '', limit: q.params[0] };
+          limit = q.params[0];
+          break;
         default:
           if(cmdsApplied)
-            return { select, post: post + ')' };
-          else  return { select };
+            return { select, post: post + ')', limit };
+          else return { select, limit };
       }
     }
     if(cmdsApplied)
-      return { select, post };
+      return { select, post, limit };
     else
-      return { select };
+      return { select, limit };
   }
 }
 
@@ -792,14 +833,19 @@ class SQLite3Selection<T = any> extends SQLite3Stream<T> implements Selection<T>
     const selection = await this.makeSelection();
     if(this.query.length) {
       const { select, post, kill, limit } = await this.computeQuery();
-      this.query = [];
 
       if(kill) return [];
 
       const poost = (post ? ' AND ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
       return this.db.all<T>(`SELECT ${select} FROM [${tableName}] WHERE ${selection}${poost}`).then(async rs => {
         const types = await resolveHValue(this.types);
-        return rs.map(r => coerceCorrectReturn<T>(r, types));
+        let res: any[] = rs.map(r => coerceCorrectReturn<T>(r, types));
+        const maps = this.query.filter(a => a.cmd === 'map');
+        for(const map of maps)
+          res = await Promise.all(res.map(r => resolveHValue((map.params[0] as (doc: Datum<typeof r>) => Datum<any>)(createStaticDatum(r)))));
+
+        this.query = [];
+        return res;
       });
     }
     return this.db.all<T>(`SELECT * FROM [${tableName}] WHERE ${selection}`).then(async rs => {
@@ -918,14 +964,19 @@ class SQLite3Table<T = any> extends SQLite3Stream<T> implements Table<T> {
     const tableName = await resolveHValue(this.tableName);
     if(this.query.length) {
       const { select, post, kill, limit } = await this.computeQuery();
-      this.query = [];
 
       if(kill) return [];
 
       const poost = (post ? ' WHERE ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
       return this.db.all<T>(`SELECT ${select} FROM [${tableName}]${poost}`).then(async rs => {
         const types = await resolveHValue(this.types);
-        return rs.map(r => coerceCorrectReturn<T>(r, types));
+        let res: any[] = rs.map(r => coerceCorrectReturn<T>(r, types));
+        const maps = this.query.filter(a => a.cmd === 'map');
+        for(const map of maps)
+          res = await Promise.all(res.map(r => resolveHValue((map.params[0] as (doc: Datum<typeof r>) => Datum<any>)(createStaticDatum(r)))));
+
+        this.query = [];
+        return res;
       });
     }
     return this.db.all<T>(`SELECT * FROM [${tableName}]`).then(async rs => {

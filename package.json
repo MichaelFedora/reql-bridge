@@ -1,7 +1,7 @@
 {
   "name": "reql-sqlite3",
   "version": "1.0.0",
-  "description": "ReQL(-like) interpreter on for SQLite3",
+  "description": "ReQL(-like) interpreter for SQLite3",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {

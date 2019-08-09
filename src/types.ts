@@ -40,10 +40,17 @@ export interface WriteResult<T = any> {
 export type Value<T = any> = Datum<T> | Query<T> | T;
 
 export interface Query<T = any> {
+
+  // EXECUTION
+
   run(): Promise<T>;
 }
 
 export interface DatumPartial<T = any> extends Query<T>  {
+
+  // TRANSFORMATION
+
+  map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): T extends any[] ? Datum<U[]> : never;
 
   // ANY
 
@@ -98,7 +105,8 @@ export interface Stream<T = any> extends Query<T[]> {
   count(): Datum<number>;
   filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Stream<T>;
   distinct(): Stream<T>;
-  limit(n: Value<number>): Query<T[]>; // don't do things after limiting
+  limit(n: Value<number>): Stream<T>;
+  map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): Stream<U>;
   pluck(...fields: string[]): Stream<Partial<T>>;
 }
 
@@ -118,7 +126,7 @@ export interface Table<T = any> extends Selection<T> {
 
 export interface SchemaEntry {
   name: string;
-  type: 'string' | 'bool' | 'number' | 'object';
+  type: 'string' | 'bool' | 'number' | 'object' | 'any';
   index?: boolean;
 }
 

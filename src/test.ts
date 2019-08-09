@@ -1,5 +1,5 @@
 import { getLogger, configure } from 'log4js';
-import { create as createReQLSqlite3DB } from './reql-sqlite3';
+import { create as createReQLSQLite3DB } from './reql-sqlite3';
 
 const level = 'trace';
 const layout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %m' };
@@ -23,33 +23,51 @@ interface TableType { key: string; value: object; count: number; sale: boolean; 
 
   const logger = getLogger('db2');
 
-  const test = await createReQLSqlite3DB();
+  const db = await createReQLSQLite3DB();
 
-  const res = await test.tableCreate('test-table', [
+  // begin sample
+
+  await db.tableCreate('my-table', [
+    { name: 'key', type: 'string' },
+    { name: 'value', type: 'any' }
+  ]).run();
+  const table = db.table<{ key: string, value: any }>('my-table');
+  await table.insert({ key: 'fooo', value: 'apple' }).run();
+  await table.insert({ key: 'bar', value: 2 }).run();
+  await table.insert({ key: 'yeet', value: { super: false } }).run();
+
+  console.log(await table.get('bar')('value').run()); // pear
+  console.log(await table.filter(doc => doc('key').len().ge(4)).run()); // { key: 'fooo', value: 'apple' }
+  console.log(await table.pluck('key').limit(1).map(doc => doc('key')).run()); // ['foo'] or ['bar'] or ['yeet'] (random)
+  console.log(await table.getAll('yeet', 'bar').map(doc => doc('value')).run()); // [ 2, { super: false } ]
+
+  // end sample
+
+  const res = await db.tableCreate('test-table', [
     { name: 'key', type: 'string' },
     { name: 'value', type: 'object' },
     { name: 'count', type: 'number' },
     { name: 'sale', type: 'bool' }
   ])('tables_created').gt(0).run();
   logger.info('res: ', res);
-  logger.info('table list: ', await test.tableList().run());
-  logger.debug('types db: ', await test.table<{ types: string }>('__reql_typemap__').pluck('types').run().then(a => {
+  logger.info('table list: ', await db.tableList().run());
+  logger.debug('types db: ', await db.table<{ types: string }>('__reql_typemap__').pluck('types').run().then(a => {
     return a.map(b => JSON.parse(b.types));
   }));
-  const table = test.table<TableType>('test-table');
-  logger.info('table insert: ', await table.insert({ key: 'foo', value: { type: 'bar' }, count: 3, sale: false }).run());
-  logger.info('table insert: ', await table.insert({ key: 'lime', value: { type: 'juice' }, count: 0, sale: true }).run());
-  logger.info('table insert: ', await table.insert({ key: 'orange', value: { type: 'syrup' }, count: 1, sale: false }).run());
-  logger.info('table: ', await table.run());
-  logger.info('table.get("blah"): ', await table.get('foo').run());
-  logger.info('table.getAll({ type: "bar" }, { index: "value" }): ', await table.getAll({ type: 'bar' }, { index: 'value' }).run());
-  logger.info('table.insert(update): ', await table.insert({ key: 'lime', value: { type: 'bar' } } as any, { conflict: 'update' }).run());
-  logger.info('table: ', await table.run());
-  logger.info('table.limit(2): ', await table.limit(2).run());
-  logger.info('table.pluck("key", "count").filter({ value: { type: bar } }): ',
-    await table.pluck('key', 'count').filter({ value: { type: 'bar' } }).run());
-  logger.info('table.get("lime")("value")("type"): ', await table.get('lime')('value')('type').run());
-  logger.info('table.filter(doc => doc("key").len().ge(4)): ', await table.filter(doc => doc('key').len().ge(4)).run());
+  const testTbl = db.table<TableType>('test-table');
+  logger.info('testTbl insert: ', await testTbl.insert({ key: 'foo', value: { type: 'bar' }, count: 3, sale: false }).run());
+  logger.info('testTbl insert: ', await testTbl.insert({ key: 'lime', value: { type: 'juice' }, count: 0, sale: true }).run());
+  logger.info('testTbl insert: ', await testTbl.insert({ key: 'orange', value: { type: 'syrup' }, count: 1, sale: false }).run());
+  logger.info('testTbl: ', await testTbl.run());
+  logger.info('testTbl.get("blah"): ', await testTbl.get('foo').run());
+  logger.info('testTbl.getAll({ type: "bar" }, { index: "value" }): ', await testTbl.getAll({ type: 'bar' }, { index: 'value' }).run());
+  logger.info('testTbl.insert(update): ', await testTbl.insert({ key: 'lime', value: { type: 'bar' } } as any, { conflict: 'update' }).run());
+  logger.info('testTbl: ', await testTbl.run());
+  logger.info('testTbl.limit(2): ', await testTbl.limit(2).run());
+  logger.info('testTbl.pluck("key", "count").filter({ value: { type: bar } }): ',
+    await testTbl.pluck('key', 'count').filter({ value: { type: 'bar' } }).run());
+  logger.info('testTbl.get("lime")("value")("type"): ', await testTbl.get('lime')('value')('type').run());
+  logger.info('testTbl.filter(doc => doc("key").len().ge(4)): ', await testTbl.filter(doc => doc('key').len().ge(4)).run());
 })().then(() => {
   process.exit(0);
 }).catch(e => {
