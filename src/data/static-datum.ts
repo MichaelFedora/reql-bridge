@@ -1,9 +1,9 @@
-import { Datum, Value, DatumPartial } from '../types';
-import { resolveHValue } from '../internal/util';
-import { Selectable, makeSelector } from './selectable';
+import { Datum, Value, DatumPartial, DeepPartial } from '../types';
+import { resolveHValue, deepPartialToPredicate } from '../internal/util';
+import { SelectableDatum, makeSelector } from './selectable';
 import { SQLite3DatumPartial } from './datum';
 
-class SQLite3StaticDatumPartial<T = any> extends SQLite3DatumPartial<T> implements DatumPartial<T>, Selectable<T> {
+class SQLite3StaticDatumPartial<T = any> extends SQLite3DatumPartial<T> implements DatumPartial<T>, SelectableDatum<T> {
 
   constructor(private initialValue: Value<T>) {
     super();
@@ -12,10 +12,14 @@ class SQLite3StaticDatumPartial<T = any> extends SQLite3DatumPartial<T> implemen
   _sel<U extends string | number>(attribute: Value<U>):
     U extends keyof T ? SQLite3StaticDatumPartial<T[U]> : SQLite3StaticDatumPartial<any> {
 
-    const child = new SQLite3StaticDatumPartial<T>(this.initialValue);
-    child.query = this.query.slice();
-    child.query.push({ cmd: 'sel', params: [attribute] });
-    return child as any;
+    this.query.push({ cmd: 'sel', params: [attribute] });
+    return this as any;
+  }
+
+  fork(): Datum<T> {
+    const clone = expr(this.initialValue);
+    (clone as any).query = this.query.slice();
+    return clone;
   }
 
   async run(): Promise<T> {
@@ -43,10 +47,10 @@ export async function resolveQueryStatic<T = any>(
 
       case 'map':
         if(!(value instanceof Array))
-          throw new Error('Cannot map a non-array value!');
+          throw new Error('Cannot map a non-array value: ' + JSON.stringify(value));
         const newv = [];
         for(const subv of value) {
-          newv.push(await resolveHValue((params[0] as (doc: Datum<typeof subv>) => Datum<any>)(createStaticDatum(subv))));
+          newv.push(await resolveHValue((params[0] as (doc: Datum<typeof subv>) => Datum<any>)(expr(subv))));
         }
         value = newv;
         break;
@@ -114,6 +118,45 @@ export async function resolveQueryStatic<T = any>(
         });
         break;
 
+      case 'count':
+        value = (value as any[]).length;
+        break;
+      case 'limit':
+        value = (value as any[]).slice(0, Number(params[0]));
+        break;
+      case 'difference':
+        value = (value as any[]).filter(a => !(params[0] as any[]).includes(a));
+        break;
+      case 'contains':
+        value = Boolean((value as any).find(a => a === (params[0])));
+        break;
+      case 'filter':
+        const pred: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>) = params[0];
+
+        let predfoo: ((doc: Datum<T>) => Value<boolean>);
+        if(typeof pred === 'function')
+          predfoo = pred as ((doc: Datum<T>) => Value<boolean>);
+        else if(typeof pred === 'object')
+          predfoo = deepPartialToPredicate(pred);
+        else
+          predfoo = () => Boolean(pred);
+
+        value = (value as any[]).filter(a => predfoo(expr(a)));
+        break;
+      case 'pluck':
+        const newvalue = [];
+        for(const item of value) {
+          const newitem = { };
+          for(const field of params) {
+            newvalue[field] = value[field];
+          }
+        }
+        value = newvalue;
+      break;
+      case 'map':
+        value = (value as any[]).map(a => params[0](expr(value)));
+        break;
+
       default:
         throw new Error(`Cannot perform query "${q.cmd}" on this (static) datum!`);
     }
@@ -123,6 +166,12 @@ export async function resolveQueryStatic<T = any>(
 
 export interface SQLite3StaticDatum<T = any> extends SQLite3StaticDatumPartial<T>, Datum<T> { }
 
-export function createStaticDatum<T = any>(initialValue: Value<T> | Value<T>): SQLite3StaticDatum<T> {
+export function exprQuery<T = any>(initialValue: Value<T> | Value<T>, query: { cmd: string, params?: any[] }[]): Datum<T> {
+  const datum = makeSelector<T>(new SQLite3StaticDatumPartial<T>(initialValue)) as any;
+  datum.query = query;
+  return datum;
+}
+
+export function expr<T = any>(initialValue: Value<T> | Value<T>): Datum<T> {
   return makeSelector<T>(new SQLite3StaticDatumPartial<T>(initialValue)) as any;
 }

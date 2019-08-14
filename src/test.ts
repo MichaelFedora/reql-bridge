@@ -1,11 +1,9 @@
-import { getLogger, configure } from 'log4js';
+import { getLogger, configure, shutdown } from 'log4js';
 import { create as createReQLSQLite3DB } from './data/database';
 
 const level = 'trace';
 const layout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %m' };
 const errorLayout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %f:%l %m%n%s' };
-
-interface TableType { key: string; value: object; count: number; sale: boolean; }
 
 (async () => {
 
@@ -37,10 +35,15 @@ interface TableType { key: string; value: object; count: number; sale: boolean; 
   await table.insert({ key: 'yeet', value: { super: false } }).run();
 
   console.log(await table.get('bar')('value').run()); // pear
-  console.log(await table.filter(doc => doc('key').len().ge(4)).run()); // { key: 'fooo', value: 'apple' }
+  console.log(await table.filter(doc => doc('key').len().ge(4)).run());
+  // ^- [ { key: 'fooo', value: 'apple' }, { key: 'yeet', value: { super: false } }
   console.log(await table.pluck('key').limit(1).map(doc => doc('key')).run()); // ['foo'] or ['bar'] or ['yeet'] (random)
   console.log(await table.getAll('yeet', 'bar').map(doc => doc('value')).run()); // [ 2, { super: false } ]
 
+  const statement = table.filter(doc => doc('key').len().ge(4)).limit(2); // create a statement and add cmds to the queue
+  console.log('count: ' + await statement.fork().count().run()); // forked queue, original stays the same
+  console.log(await statement.filter(doc => doc('key').substr('e'))('value').run()); // original queue, flushing after run
+  console.log(await statement.run()); // clean statement b/c it had an empty cmd queue
   // end sample
 
   const res = await db.tableCreate('test-table', [
@@ -54,7 +57,7 @@ interface TableType { key: string; value: object; count: number; sale: boolean; 
   logger.debug('types db: ', await db.table<{ types: string }>('__reql_typemap__').pluck('types').run().then(a => {
     return a.map(b => JSON.parse(b.types));
   }));
-  const testTbl = db.table<TableType>('test-table');
+  const testTbl = db.table<{ key: string; value: { type: string }; count: number; sale: boolean; }>('test-table');
   logger.info('testTbl insert: ', await testTbl.insert({ key: 'foo', value: { type: 'bar' }, count: 3, sale: false }).run());
   logger.info('testTbl insert: ', await testTbl.insert({ key: 'lime', value: { type: 'juice' }, count: 0, sale: true }).run());
   logger.info('testTbl insert: ', await testTbl.insert({ key: 'orange', value: { type: 'syrup' }, count: 1, sale: false }).run());
@@ -67,11 +70,15 @@ interface TableType { key: string; value: object; count: number; sale: boolean; 
   logger.info('testTbl.limit(2): ', await testTbl.limit(2).run());
   logger.info('testTbl.pluck("key", "count").filter({ value: { type: bar } }): ',
     await testTbl.pluck('key', 'count').filter({ value: { type: 'bar' } }).run());
+  logger.info('testTbl("key"): ', await testTbl('key').run());
+  logger.info(await testTbl('value')('type').filter(doc => doc.len().ge(4)).run());
   logger.info('testTbl.get("lime")("value")("type"): ', await testTbl.get('lime')('value')('type').run());
   logger.info('testTbl.filter(doc => doc("key").len().ge(4)): ', await testTbl.filter(doc => doc('key').len().ge(4)).run());
 })().then(() => {
   process.exit(0);
 }).catch(e => {
-  console.error(e);
-  process.exit(1);
+  shutdown(() => {
+    console.error(e);
+    process.exit(1);
+  });
 });

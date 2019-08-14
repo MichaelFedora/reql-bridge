@@ -1,36 +1,49 @@
-import { Table, Value, Datum, SchemaEntry, DeepPartial, WriteResult, SingleSelection, Selection } from '../types';
+import { Table, TablePartial, Value, Datum, SchemaEntry, DeepPartial, WriteResult, SingleSelection, Selection, Query } from '../types';
 import { createQuery, resolveHValue, safen, coerceCorrectReturn } from '../internal/util';
 import { WrappedSQLite3Database } from '../internal/sqlite3-wrapper';
 import { SQLite3Stream } from './stream';
-import { createStaticDatum } from './static-datum';
+import { expr, exprQuery } from './static-datum';
 import { createSingleSelection } from './single-selection';
-import { SQLite3Selection } from './selection';
+import { createSelection } from './selection';
+import { makeStreamSelector } from './selectable';
 
-export class SQLite3Table<T = any> extends SQLite3Stream<T> implements Table<T> {
+export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements TablePartial<T> {
+
+  private get primaryIndexGetter(): Query<string> {
+    return createQuery(async () => this.db.getPrimaryKey(await resolveHValue(this.tableName)));
+  }
 
   constructor(db: WrappedSQLite3Database, tableName: Value<string>, private types: Value<SchemaEntry[]>) { super(db, tableName); }
 
-  filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): this {
-    this.query.push({ cmd: 'filter', params: [predicate] });
-    return this;
+  filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Selection<T> {
+    return super.filter(predicate) as any;
+  }
+
+  fork(): never;
+  fork() { // for fake Selection<T>
+    const child = createSelection(this.db, this.tableName, ['*'], this.primaryIndexGetter, this.types);
+    (child as any).query = this.query.slice();
+    (child as any).sel = this.sel;
+    return child;
   }
 
   count(): Datum<number> {
-    return createStaticDatum(createQuery(async() => {
+    return expr(createQuery(async() => {
       const tableName = await resolveHValue(this.tableName);
       if(this.query.length) {
         const { post, kill, limit } = await this.computeQuery();
         if(kill) return 0;
 
         const poost = (post ? ` WHERE ${post}` : '') + (limit ? `LIMIT ${limit}` : '');
-        return this.db.get<{ 'COUNT(*)': number }>(`SELECT COUNT(*) FROM [${tableName}]${poost}`).then(a => a['COUNT(*)']);
+        return this.db.get<{ 'COUNT(*)': number }>(`SELECT COUNT(*) FROM [${tableName}]${poost}`)
+          .then(a => limit ? Math.min(a['COUNT(*)'], limit) : a['COUNT(*)']);
       }
       return this.db.get<{ 'COUNT(*)': number }>(`SELECT COUNT(*) FROM [${tableName}]`).then(a => a['COUNT(*)']);
     }));
   }
 
   delete(): Datum<WriteResult<T>> {
-    return createStaticDatum(createQuery<WriteResult<T>>(async() => {
+    return expr(createQuery<WriteResult<T>>(async() => {
       const tableName = await resolveHValue(this.tableName);
       if(this.query.length) {
         const { post, kill, limit } = await this.computeQuery();
@@ -55,9 +68,12 @@ export class SQLite3Table<T = any> extends SQLite3Stream<T> implements Table<T> 
     }), this.types);
   }
 
+  getAll(key: any, options?: { index: string }): Selection<T>; // not editable
+  getAll(key: any, key2: any, options?: { index: string }): Selection<T>;
+  getAll(...key: (number | string | { index: string })[]): Selection<T>;
   getAll(...values: (number | string | { index: string })[]): Selection<T> {
     let index: Value<string>;
-    if(typeof values[values.length - 1] === 'object') {
+    if(values.length && typeof values[values.length - 1] === 'object') {
       index = (values.pop() as { index: string }).index;
     } else {
       index = createQuery(async () => {
@@ -65,11 +81,11 @@ export class SQLite3Table<T = any> extends SQLite3Stream<T> implements Table<T> 
         return this.db.getPrimaryKey(tableName);
       });
     }
-    return new SQLite3Selection(this.db, this.tableName, values, index, this.types);
+    return createSelection(this.db, this.tableName, values, index, this.types);
   }
 
   insert(obj: T, options?: { conflict: 'error' | 'replace' | 'update' }): Datum<WriteResult<T>> {
-    return createStaticDatum(createQuery(async () => {
+    return expr(createQuery(async () => {
       const tableName = await resolveHValue(this.tableName);
 
       let repKeys = '';
@@ -110,7 +126,7 @@ export class SQLite3Table<T = any> extends SQLite3Stream<T> implements Table<T> 
   async run(): Promise<T[]> {
     const tableName = await resolveHValue(this.tableName);
     if(this.query.length) {
-      const { select, post, kill, limit } = await this.computeQuery();
+      const { select, post, kill, limit, cmdsApplied } = await this.computeQuery();
 
       if(kill) return [];
 
@@ -118,10 +134,8 @@ export class SQLite3Table<T = any> extends SQLite3Stream<T> implements Table<T> 
       return this.db.all<T>(`SELECT ${select} FROM [${tableName}]${poost}`).then(async rs => {
         const types = await resolveHValue(this.types);
         let res: any[] = rs.map(r => coerceCorrectReturn<T>(r, types));
-        const maps = this.query.filter(a => a.cmd === 'map');
-        for(const map of maps)
-          res = await Promise.all(res.map(r =>
-            resolveHValue((map.params[0] as (doc: Datum<typeof r>) => Datum<any>)(createStaticDatum(r)))));
+        const query = this.query.slice(cmdsApplied);
+        res = await Promise.all(res.map(r => exprQuery(r, query).run()));
 
         this.query = [];
         return res;
@@ -132,4 +146,10 @@ export class SQLite3Table<T = any> extends SQLite3Stream<T> implements Table<T> 
       return rs.map(r => coerceCorrectReturn<T>(r, types));
     });
   }
+}
+
+interface SQLite3Table<T = any> extends SQLite3TablePartial<T>, Table<T> { }
+
+export function createTable<T = any>(db: WrappedSQLite3Database, tableName: Value<string>, types: Value<SchemaEntry[]>): SQLite3Table<T> {
+  return makeStreamSelector<T>(new SQLite3TablePartial<T>(db, tableName, types)) as any;
 }

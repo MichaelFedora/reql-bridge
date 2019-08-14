@@ -1,8 +1,8 @@
 import { Value, Database, SchemaEntry, Datum, TableChangeResult, Table } from '../types';
 import { WrappedSQLite3Database, create as createSQLite3DB } from '../internal/sqlite3-wrapper';
 import { createQuery } from '../internal/util';
-import { createStaticDatum } from './static-datum';
-import { SQLite3Table } from './table';
+import { expr } from './static-datum';
+import { createTable } from './table';
 
 export class SQLite3ReQLDatabase implements Database {
 
@@ -55,7 +55,7 @@ export class SQLite3ReQLDatabase implements Database {
     if(keys.length === 0)
       throw new Error('Must have a schema of at least one entry!');
 
-    return createStaticDatum(createQuery(async () => {
+    return expr(createQuery(async () => {
       if(typeof tableName !== 'string')
           tableName = await tableName.run();
       await this.db.exec(`CREATE TABLE IF NOT EXISTS [${tableName}] (${keys})`);
@@ -68,7 +68,7 @@ export class SQLite3ReQLDatabase implements Database {
   }
 
   tableDrop(tableName: Value<string>): Datum<TableChangeResult> {
-    return createStaticDatum(createQuery(async () => {
+    return expr(createQuery(async () => {
       if(typeof tableName !== 'string')
           tableName = await tableName.run();
       await this.db.exec(`DROP TABLE IF EXISTS [${tableName}]`);
@@ -77,17 +77,21 @@ export class SQLite3ReQLDatabase implements Database {
   }
 
   tableList(): Datum<string[]> {
-    return createStaticDatum(createQuery(async () => {
+    return expr(createQuery(async () => {
       const result = await this.db.all<{ name: string }>(`SELECT name FROM sqlite_master WHERE type='table'`);
       return result.map(a => a.name);
     }));
   }
 
   table<T = any>(tableName: Value<string>): Table<T> {
-    return new SQLite3Table<T>(this.db, tableName, createQuery(async () =>
+    return createTable<T>(this.db, tableName, createQuery(async () =>
         tableName !== this.typemapsTableName
           ? await this.typemaps.get(tableName)('types').run().then(a => JSON.parse(a))
           : this.typemapsType));
+  }
+
+  async close() {
+    return this.db.close();
   }
 }
 

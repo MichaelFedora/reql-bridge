@@ -41,6 +41,10 @@ export type Value<T = any> = Datum<T> | Query<T> | T;
 
 export interface Query<T = any> {
 
+  // FORK/DUPLICATION
+
+  fork(): Query<T>;
+
   // EXECUTION
 
   run(): Promise<T>;
@@ -48,9 +52,9 @@ export interface Query<T = any> {
 
 export interface DatumPartial<T = any> extends Query<T>  {
 
-  // TRANSFORMATION
+  // QUERY
 
-  map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): T extends any[] ? Datum<U[]> : never;
+  fork(): Datum<T>;
 
   // ANY
 
@@ -67,7 +71,7 @@ export interface DatumPartial<T = any> extends Query<T>  {
 
   startsWith(str: Value<string>): T extends string ? Datum<boolean> : never;
   endsWith(str: Value<string>): T extends string ? Datum<boolean> : never;
-  includes(str: Value<string>): T extends string ? Datum<boolean> : never;
+  substr(str: Value<string>): T extends string ? Datum<boolean> : never;
   len(): T extends string ? Datum<number> : never;
 
   // NUMBER
@@ -84,44 +88,133 @@ export interface DatumPartial<T = any> extends Query<T>  {
   lt(...values: Value<number>[]): T extends number ? Datum<boolean> : never;
   ge(...values: Value<number>[]): T extends number ? Datum<boolean> : never;
   le(...values: Value<number>[]): T extends number ? Datum<boolean> : never;
+
+  // ARRAY
+
+  count(): T extends any[] ? Datum<number> : never;
+  limit(n: Value<number>): T extends any[] ? Datum<T> : never;
+
+  difference(value: Value<T>): T extends any[] ? Datum<boolean> : never;
+  contains<U>(value: Value<U>): T extends U[] ? Datum<boolean> : never;
+
+  filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): T extends any[] ? Datum<T> : never;
+  pluck<U extends object>(...fields: string[]): T extends U[] ? Datum<Partial<U>[]> : never;
+  map<U, V = any>(predicate: (doc: Datum<U>) => Datum<V>): T extends U[] ? Datum<V[]> : never;
 }
 
 export interface Datum<T = any> extends DatumPartial<T> {
-  // Select sub-object / field
+
+  // SELECTION
+
   <U extends string | number>(attribute: Value<U>): U extends keyof T
     ? Datum<T[U]>
     : Datum<any>;
 }
 
 export interface SingleSelectionPartial<T = any> extends DatumPartial<T> {
+
+  // QUERY
+
+  fork(): SingleSelection<T>;
+
+  // OPERATIONS
+
   update(obj: Value<DeepPartial<T>>): Datum<WriteResult<T>>;
   replace(obj: Value<DeepPartial<T>>): Datum<WriteResult<T>>;
   delete(): Datum<WriteResult<T>>;
 }
 
-export interface SingleSelection<T = any> extends SingleSelectionPartial<T>, Datum<T> { }
+export interface SingleSelection<T = any> extends SingleSelectionPartial<T>, Datum<T> {
 
-export interface Stream<T = any> extends Query<T[]> {
-  count(): Datum<number>;
-  filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Stream<T>;
-  distinct(): Stream<T>;
-  limit(n: Value<number>): Stream<T>;
-  map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): Stream<U>;
-  pluck(...fields: string[]): Stream<Partial<T>>;
+  // QUERY (override)
+
+  fork(): SingleSelection<T>;
 }
 
-export interface Selection<T = any> extends Stream<T> {
+export interface StreamPartial<T = any> extends Query<T[]> {
+
+  // QUERY
+
+  fork(): Stream<T>;
+
+  // AGGREGATION
+
+  distinct(): Stream<T>;
+  filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Stream<T>;
+  limit(n: Value<number>): Stream<T>;
+
+  // TRANSFORMS
+
+  count(): Datum<number>;
+  map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): Stream<U>;
+  pluck(...fields: (string | number)[]): T extends object ? Stream<Partial<T>> : never;
+}
+
+export interface Stream<T> extends StreamPartial<T> {
+
+  // QUERY (override)
+
+  fork(): Stream<T>;
+
+  // SELECTION
+
+  <U extends string | number>(attribute: Value<U>): U extends keyof T
+    ? Stream<T[U]>
+    : Stream<any>;
+}
+
+export interface SelectionPartial<T = any> extends StreamPartial<T> {
+
+  // QUERY
+
+  fork(): Selection<T>;
+
+  // OPERATIONS
+
   delete(): Datum<WriteResult<T>>;
-  // allow filtering to delete, but not to insert/get/getall
   filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Selection<T>;
 }
 
-export interface Table<T = any> extends Selection<T> {
-  get(key: any): SingleSelection<T>;
-  getAll(key: any, options?: { index: string }): Selection<T>;
+export interface Selection<T = any> extends SelectionPartial<T>, Stream<T> {
+
+  // QUERY (override)
+
+  fork(): Selection<T>;
+
+  // SELECTION
+
+  <U extends string | number>(attribute: Value<U>): U extends keyof T
+    ? Selection<T[U]>
+    : Selection<any>;
+
+  // OPERATIONS (overrides)
+  filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Selection<T>;
+}
+
+export interface TablePartial<T = any> extends SelectionPartial<T> {
+
+  // QUERY
+
+  fork(): never;
+
+  // SELECTION
+
+  get(key: any): SingleSelection<T>; // editable
+
+  getAll(key: any, options?: { index: string }): Selection<T>; // not editable
   getAll(key: any, key2: any, options?: { index: string }): Selection<T>;
   getAll(...key: (number | string | { index: string })[]): Selection<T>;
+
+  // OPERATIONS
+
   insert(obj: T, options?: { conflict: 'error' | 'replace' | 'update' }): Datum<WriteResult<T>>;
+}
+
+export interface Table<T = any> extends TablePartial<T>, Selection<T> {
+
+  // QUERY (override)
+
+  fork(): never; // unecessary
 }
 
 export interface SchemaEntry {
@@ -131,8 +224,16 @@ export interface SchemaEntry {
 }
 
 export interface Database {
+
+  // TABLE
+
   tableCreate(tableName: Value<string>, schema: readonly SchemaEntry[]): Datum<TableChangeResult>;
   tableDrop(tableName: Value<string>): Datum<TableChangeResult>;
   tableList(): Datum<string[]>;
+
   table<T = any>(tableName: Value<string>): Table<T>;
+
+  // ADMINISTRATION
+
+  close(): Promise<void>;
 }

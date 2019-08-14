@@ -1,16 +1,9 @@
-import { DatumPartial, Value, Datum } from '../types';
+import { DatumPartial, Value, Datum, DeepPartial } from '../types';
 
 export abstract class SQLite3DatumPartial<T = any> implements DatumPartial<T> {
   protected query: { readonly cmd: string, readonly params?: readonly Value<any>[] }[] = [];
 
-  abstract _sel<U extends string | number>(attribute: Value<U>): U extends keyof T ? SQLite3DatumPartial<T[U]> : SQLite3DatumPartial<any>;
-
-  // TRANSFORMATION
-
-  map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): T extends any[] ? Datum<U[]> : never {
-    this.query.push({ cmd: 'map', params: [predicate] });
-    return this as any;
-  }
+  abstract _sel<U extends string | number>(attribute: Value<U>): U extends keyof T ? DatumPartial<T[U]> : DatumPartial<any>;
 
   // LOGIC
 
@@ -50,7 +43,7 @@ export abstract class SQLite3DatumPartial<T = any> implements DatumPartial<T> {
     this.query.push({ cmd: 'endsWith', params: [str] });
     return this as any;
   }
-  includes(str: Value<string>): T extends string ? Datum<boolean> : never {
+  substr(str: Value<string>): T extends string ? Datum<boolean> : never {
     this.query.push({ cmd: 'includes', params: [str] });
     return this as any;
   }
@@ -99,5 +92,39 @@ export abstract class SQLite3DatumPartial<T = any> implements DatumPartial<T> {
     return this as any;
   }
 
+  // ARRAY
+
+  count(): T extends any[] ? Datum<number> : never {
+    this.query.push({ cmd: 'count' });
+    return this as any;
+  }
+  difference(value: Value<T>): T extends any[] ? Datum<boolean> : never {
+    this.query.push({ cmd: 'difference', params: [value] });
+    return this as any;
+  }
+  contains<U = any>(value: Value<U>): T extends U[] ? Datum<boolean> : never {
+    this.query.push({ cmd: 'contains', params: [value] });
+    return this as any;
+  }
+  filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): T extends any[] ? Datum<T> : never {
+    this.query.push({ cmd: 'filter', params: [predicate] });
+    return this as any;
+  }
+  limit(n: Value<number>): T extends any[] ? Datum<T> : never {
+    this.query.push({ cmd: 'limit', params: [n] });
+    return this as any;
+  }
+  pluck<U>(...fields: string[]): T extends U[] ? Datum<Partial<U>[]> : never {
+    this.query.push({ cmd: 'pluck', params: fields });
+    return this as any;
+  }
+  map<U, V = any>(predicate: (doc: Datum<U>) => Datum<V>): T extends U[] ? Datum<V[]> : never {
+    this.query.push({ cmd: 'map', params: [predicate] });
+    return this as any;
+  }
+
+  // QUERY
+
+  abstract fork(): Datum<T>;
   abstract run(): Promise<T>;
 }

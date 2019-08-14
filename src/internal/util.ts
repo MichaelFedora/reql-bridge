@@ -1,7 +1,8 @@
 import { Query, Datum, Value, SchemaEntry, DeepPartial } from '../types';
 
 export function createQuery<T = any>(run: () => Promise<T>): Query<T> {
-  return { run };
+  const query = { run, fork: () => query };
+  return query;
 }
 
 export async function resolveHValue<T = any>(value: Value<T>): Promise<T> {

@@ -1,20 +1,35 @@
-import { Stream, Value, Datum, DeepPartial } from '../types';
+import { Stream, StreamPartial, Value, Datum, DeepPartial } from '../types';
 import { WrappedSQLite3Database } from '../internal/sqlite3-wrapper';
 import { resolveHValue, deepPartialToPredicate } from '../internal/util';
 import { createQueryDatum } from './query-datum';
+import { SelectableStream } from './selectable';
 
-export abstract class SQLite3Stream<T = any> implements Stream<T> {
+export abstract class SQLite3Stream<T = any> implements StreamPartial<T>, SelectableStream<T> {
 
   protected query: { cmd: string, params?: any[] }[] = [];
+  protected sel: Value<string | number>;
 
   constructor(protected db: WrappedSQLite3Database, protected tableName: Value<string>) { }
 
+  _sel<U extends string | number>(attribute: Value<U>): U extends keyof T
+    ? SelectableStream<T[U]>
+    : SelectableStream<any> {
+
+    if(!this.sel)
+      this.sel = attribute;
+    else
+      this.query.push({ cmd: 'sel', params: [attribute] });
+
+    return this as any;
+  }
+
   abstract count(): Datum<number>;
+  abstract fork(): Stream<T>;
   abstract async run(): Promise<T[]>;
 
-  filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): this {
+  filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Stream<T> {
     this.query.push({ cmd: 'filter', params: [predicate] });
-    return this;
+    return this as any;
   }
 
   map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): Stream<U> {
@@ -25,45 +40,52 @@ export abstract class SQLite3Stream<T = any> implements Stream<T> {
   distinct(): Stream<T> {
     if(!this.query.find(q => q.cmd === 'distinct'))
       this.query.push({ cmd: 'distinct' });
-    return this;
-  }
-
-  limit(n: Value<number>): Stream<T> {
-    if(this.query.find(a => a.cmd === 'imit'))
-      throw new Error('Cannot set a limit after having already set one!');
-
-    this.query.push({ cmd: 'limit', params: [n] });
     return this as any;
   }
 
-  pluck(...fields: string[]): Stream<Partial<T>> {
-    const idx = this.query.findIndex(q => q.cmd === 'pluck');
-    if(idx >= 0) {
-      this.query[idx].params = this.query[idx].params.concat(
-          fields.filter(a => !this.query[idx].params.includes(a)));
+  limit(n: Value<number>): Stream<T> {
+    let q = this.query.find(a => a.cmd === 'limit');
+
+    if(!q) {
+      q = { cmd: 'limit', params: [n] };
+      this.query.push(q);
+
+    } else {
+      q.params[0] = n;
+    }
+
+    return this as any;
+  }
+
+  pluck(...fields: (string | number)[]): T extends object ? Stream<Partial<T>> : never {
+    const q = this.query.find(a => a.cmd === 'pluck');
+    if(q) {
+      q.params = q.params.concat(fields.filter(a => !q.params.includes(a)));
     } else {
       this.query.push({ cmd: 'pluck', params: fields });
     }
     return this as any;
   }
 
-  protected async computeQuery(): Promise<{ select?: string, post?: string, limit?: number, kill?: boolean }> {
+  protected async computeQuery(): Promise<{ cmdsApplied: number, select?: string, post?: string, limit?: number, kill?: boolean }> {
     if(!this.query.length)
-      return { select: '*' };
+      return { cmdsApplied: 0, select: '*' };
+
     const tableName = await resolveHValue(this.tableName);
     const primaryKey = await this.db.getPrimaryKey(tableName);
 
-    const distinct = Boolean(this.query.find(q => q.cmd === 'distinct'));
-    const pluck = this.query.find(q => q.cmd === 'pluck');
-    const select = (distinct ? 'DISTINCT ' : '') + (pluck ? pluck.params.map(a => `[${a}]`).join(', ') : '*');
-
-    let post = ``;
+    let select = this.sel ? `[${this.sel}]` : '*';
+    let post = undefined;
     let limit = undefined;
     let cmdsApplied = 0;
     for(const q of this.query) {
+      const params = [];
+      for(const p of q.params)
+        params.push(await resolveHValue(p));
+
       switch(q.cmd) {
         case 'filter':
-          const pred: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>) = q.params[0];
+          const pred: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>) = params[0];
 
           let predfoo: ((doc: Datum<T>) => Value<boolean>);
           if(typeof pred === 'function')
@@ -83,26 +105,33 @@ export abstract class SQLite3Stream<T = any> implements Stream<T> {
               post += ` AND (${query})`;
 
           } else if(!res) {
-            return { kill: true };
+            return { cmdsApplied: 0, kill: true };
           } // if it's true, we're g2g anyways
           cmdsApplied++;
           break;
-        case 'map':
         case 'distinct':
+          if(select.startsWith('DISTINCT'))
+            throw new Error('Cannot "distinct" something that is already "distinct"ed!');
+          select = 'DISTINCT ' + select;
+          cmdsApplied++;
+          break;
         case 'pluck':
+          if(!select.endsWith('*'))
+            throw new Error('Cannot pluck on an already selected or plucked stream!');
+          select = select.slice(0, -1) + params.map(a => `[${a}]`).join(', ');
+          cmdsApplied++;
           break;
         case 'limit':
-          limit = q.params[0];
+          limit = params[0];
+          cmdsApplied++;
           break;
+        case 'map': // SKIP
         default:
-          if(cmdsApplied)
-            return { select, post: post + ')', limit };
-          else return { select, limit };
+          if(post)
+            return { select, post: post + ')', limit, cmdsApplied };
+          else return { select, limit, cmdsApplied };
       }
     }
-    if(cmdsApplied)
-      return { select, post, limit };
-    else
-      return { select, limit };
+    return { select, post, limit, cmdsApplied };
   }
 }

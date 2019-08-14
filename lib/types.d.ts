@@ -28,10 +28,11 @@ export interface WriteResult<T = any> {
 }
 export declare type Value<T = any> = Datum<T> | Query<T> | T;
 export interface Query<T = any> {
+    fork(): Query<T>;
     run(): Promise<T>;
 }
 export interface DatumPartial<T = any> extends Query<T> {
-    map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): T extends any[] ? Datum<U[]> : never;
+    fork(): Datum<T>;
     eq(...value: Value<T>[]): Datum<boolean>;
     ne(...value: Value<T>[]): Datum<boolean>;
     or(...bool: Value<boolean>[]): T extends boolean ? Datum<boolean> : never;
@@ -39,7 +40,7 @@ export interface DatumPartial<T = any> extends Query<T> {
     not(): T extends boolean ? Datum<boolean> : never;
     startsWith(str: Value<string>): T extends string ? Datum<boolean> : never;
     endsWith(str: Value<string>): T extends string ? Datum<boolean> : never;
-    includes(str: Value<string>): T extends string ? Datum<boolean> : never;
+    substr(str: Value<string>): T extends string ? Datum<boolean> : never;
     len(): T extends string ? Datum<number> : never;
     add(...values: Value<number>[]): T extends number ? Datum<number> : never;
     sub(...values: Value<number>[]): T extends number ? Datum<number> : never;
@@ -50,30 +51,51 @@ export interface DatumPartial<T = any> extends Query<T> {
     lt(...values: Value<number>[]): T extends number ? Datum<boolean> : never;
     ge(...values: Value<number>[]): T extends number ? Datum<boolean> : never;
     le(...values: Value<number>[]): T extends number ? Datum<boolean> : never;
+    count(): T extends any[] ? Datum<number> : never;
+    limit(n: Value<number>): T extends any[] ? Datum<T> : never;
+    difference(value: Value<T>): T extends any[] ? Datum<boolean> : never;
+    contains<U>(value: Value<U>): T extends U[] ? Datum<boolean> : never;
+    filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): T extends any[] ? Datum<T> : never;
+    pluck<U extends object>(...fields: string[]): T extends U[] ? Datum<Partial<U>[]> : never;
+    map<U, V = any>(predicate: (doc: Datum<U>) => Datum<V>): T extends U[] ? Datum<V[]> : never;
 }
 export interface Datum<T = any> extends DatumPartial<T> {
     <U extends string | number>(attribute: Value<U>): U extends keyof T ? Datum<T[U]> : Datum<any>;
 }
 export interface SingleSelectionPartial<T = any> extends DatumPartial<T> {
+    fork(): SingleSelection<T>;
     update(obj: Value<DeepPartial<T>>): Datum<WriteResult<T>>;
     replace(obj: Value<DeepPartial<T>>): Datum<WriteResult<T>>;
     delete(): Datum<WriteResult<T>>;
 }
 export interface SingleSelection<T = any> extends SingleSelectionPartial<T>, Datum<T> {
+    fork(): SingleSelection<T>;
 }
-export interface Stream<T = any> extends Query<T[]> {
-    count(): Datum<number>;
-    filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Stream<T>;
+export interface StreamPartial<T = any> extends Query<T[]> {
+    fork(): Stream<T>;
     distinct(): Stream<T>;
+    filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Stream<T>;
     limit(n: Value<number>): Stream<T>;
+    count(): Datum<number>;
     map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): Stream<U>;
-    pluck(...fields: string[]): Stream<Partial<T>>;
+    pluck(...fields: (string | number)[]): T extends object ? Stream<Partial<T>> : never;
 }
-export interface Selection<T = any> extends Stream<T> {
+export interface Stream<T> extends StreamPartial<T> {
+    fork(): Stream<T>;
+    <U extends string | number>(attribute: Value<U>): U extends keyof T ? Stream<T[U]> : Stream<any>;
+}
+export interface SelectionPartial<T = any> extends StreamPartial<T> {
+    fork(): Selection<T>;
     delete(): Datum<WriteResult<T>>;
     filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Selection<T>;
 }
-export interface Table<T = any> extends Selection<T> {
+export interface Selection<T = any> extends SelectionPartial<T>, Stream<T> {
+    fork(): Selection<T>;
+    <U extends string | number>(attribute: Value<U>): U extends keyof T ? Selection<T[U]> : Selection<any>;
+    filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Selection<T>;
+}
+export interface TablePartial<T = any> extends SelectionPartial<T> {
+    fork(): never;
     get(key: any): SingleSelection<T>;
     getAll(key: any, options?: {
         index: string;
@@ -88,6 +110,9 @@ export interface Table<T = any> extends Selection<T> {
         conflict: 'error' | 'replace' | 'update';
     }): Datum<WriteResult<T>>;
 }
+export interface Table<T = any> extends TablePartial<T>, Selection<T> {
+    fork(): never;
+}
 export interface SchemaEntry {
     name: string;
     type: 'string' | 'bool' | 'number' | 'object' | 'any';
@@ -98,4 +123,5 @@ export interface Database {
     tableDrop(tableName: Value<string>): Datum<TableChangeResult>;
     tableList(): Datum<string[]>;
     table<T = any>(tableName: Value<string>): Table<T>;
+    close(): Promise<void>;
 }

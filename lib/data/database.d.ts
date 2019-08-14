@@ -18,6 +18,7 @@ export declare class SQLite3ReQLDatabase implements Database {
     tableDrop(tableName: Value<string>): Datum<TableChangeResult>;
     tableList(): Datum<string[]>;
     table<T = any>(tableName: Value<string>): Table<T>;
+    close(): Promise<void>;
 }
 export declare function create(options?: {
     filename?: string;

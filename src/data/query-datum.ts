@@ -1,24 +1,26 @@
 import { Datum, Value, DatumPartial } from '../types';
 import { resolveHValue, safen } from '../internal/util';
-import { Selectable, makeSelector } from './selectable';
+import { SelectableDatum, makeSelector } from './selectable';
 import { SQLite3DatumPartial } from './datum';
 
-class SQLite3QueryDatumPartial<T = any> extends SQLite3DatumPartial<T> implements DatumPartial<T>, Selectable<T> {
+class SQLite3QueryDatumPartial<T = any> extends SQLite3DatumPartial<T> implements DatumPartial<T>, SelectableDatum<T> {
   constructor() { super(); }
 
   _sel<U extends string | number>(attribute: Value<U>):
     U extends keyof T ? SQLite3QueryDatumPartial<T[U]> : SQLite3QueryDatumPartial<any> {
 
-    const child = new SQLite3QueryDatumPartial<T>();
+    this.query.push({ cmd: 'sel', params: [attribute] });
+    return this as any;
+  }
+
+  fork(): Datum<T> {
+    const child = createQueryDatum<T>();
     child.query = this.query.slice();
-    child.query.push({ cmd: 'sel', params: [attribute] });
     return child as any;
   }
 
   async run(): Promise<T> {
-    if(this.query.length)
-      this.query = [];
-    return null;
+    throw new Error('Cannot "run" a Query Datum!');
   }
 
   async compile(): Promise<string> {
@@ -47,9 +49,6 @@ class SQLite3QueryDatumPartial<T = any> extends SQLite3DatumPartial<T> implement
           else
             sel = params[0].slice(1, -1);
           break;
-
-        case 'map':
-          throw new Error('Cannot map filter documents in SQLite3!');
 
         case 'not':
           if(query)
@@ -192,7 +191,7 @@ class SQLite3QueryDatumPartial<T = any> extends SQLite3DatumPartial<T> implement
             throw new Error('Cannot use "le" without something selected!');
           break;
 
-        default:
+        default: // map, contains, difference
           throw new Error(`Cannot perform command "${q.cmd}" on this (query) datum!`);
       }
     }

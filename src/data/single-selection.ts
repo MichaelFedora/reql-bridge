@@ -1,21 +1,20 @@
 import { SingleSelectionPartial, Value, SchemaEntry, Datum, WriteResult, DeepPartial, SingleSelection } from '../types';
 import { WrappedSQLite3Database } from '../internal/sqlite3-wrapper';
 import { resolveHValue, safen, coerceCorrectReturn } from '../internal/util';
-import { Selectable, makeSelector } from './selectable';
+import { SelectableDatum, makeSelector } from './selectable';
 import { SQLite3DatumPartial } from './datum';
 import { resolveQueryStatic } from './static-datum';
 
-class SQLite3SingleSelectionPartial<T = any> extends SQLite3DatumPartial<T> implements SingleSelectionPartial<T>, Selectable<T> {
+class SQLite3SingleSelectionPartial<T = any> extends SQLite3DatumPartial<T> implements SingleSelectionPartial<T>, SelectableDatum<T> {
   constructor(private db: WrappedSQLite3Database, private tableName: Value<string>,
     private key: Value<any>, private index: Value<string>, private types: Value<SchemaEntry[]>) { super(); }
 
-  _sel<U extends string | number>(attribute: Value<U>):
-    U extends keyof T ? SQLite3DatumPartial<T[U]> : SQLite3DatumPartial<any> {
+  _sel<U extends string | number>(attribute: Value<U>): U extends keyof T
+    ? SelectableDatum<T[U]>
+    : SelectableDatum<any> {
 
-    const child = new SQLite3SingleSelectionPartial<T>(this.db, this.tableName, this.key, this.index, this.types);
-    child.query = this.query.slice();
-    child.query.push({ cmd: 'sel', params: [attribute] });
-    return child as any;
+    this.query.push({ cmd: 'sel', params: [attribute] });
+    return this as any;
   }
 
   readonly cmds = ['sel', 'update', 'replace', 'delete'];
@@ -38,6 +37,12 @@ class SQLite3SingleSelectionPartial<T = any> extends SQLite3DatumPartial<T> impl
   }
 
   // Query
+
+  fork(): SingleSelection<T> {
+    const clone = createSingleSelection<T>(this.db, this.tableName, this.key, this.index, this.types);
+    clone.query = this.query.slice();
+    return clone;
+  }
 
   async run(): Promise<T> {
     const key = await resolveHValue(this.key);

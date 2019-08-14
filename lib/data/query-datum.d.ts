@@ -1,9 +1,10 @@
 import { Datum, Value, DatumPartial } from '../types';
-import { Selectable } from './selectable';
+import { SelectableDatum } from './selectable';
 import { SQLite3DatumPartial } from './datum';
-declare class SQLite3QueryDatumPartial<T = any> extends SQLite3DatumPartial<T> implements DatumPartial<T>, Selectable<T> {
+declare class SQLite3QueryDatumPartial<T = any> extends SQLite3DatumPartial<T> implements DatumPartial<T>, SelectableDatum<T> {
     constructor();
     _sel<U extends string | number>(attribute: Value<U>): U extends keyof T ? SQLite3QueryDatumPartial<T[U]> : SQLite3QueryDatumPartial<any>;
+    fork(): Datum<T>;
     run(): Promise<T>;
     compile(): Promise<string>;
 }
