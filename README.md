@@ -1,11 +1,9 @@
-# ReQL-SQLite3
+# ReQL-Bridge
 
-*ReQL(-like) interpreter for SQLite3*
-
-[![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/michaelfedora)
+*ReQL(-like) interpreter for a multitude of databases*
 
 ```typescript
-import { create as createReQLSQLite3DB } from 'reql-sqlite3';
+import { create as createReQLSQLite3DB } from 'reql-bridge/sqlite3';
 
 const db = await create({ filename: ':memory:' });
 await db.tableCreate('my-table', [
@@ -21,6 +19,9 @@ console.log(await table.filter(doc => doc('key').len().ge(4)).run()); // { key: 
 console.log(await table.pluck('key').limit(1).map(doc => doc('key')).run()); // random, but usually ['bar']
 console.log(await table.getAll('yeet', 'bar').map(doc => doc('value')).run()); // [ 2, { super: false } ]
 ```
+
+[![patreon](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://patreon.com/michaelfedora)
+[![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/michaelfedora)
 
 For those who don't now, ReQL is the official query language of [RethinkDB](https://rethinkdb.com/api/javascript/).
 I wanted to use it with other databases, and so I made this so I could use SQLite without wanting to die inside;
@@ -52,7 +53,15 @@ to determine what it category it should use.
 
 ## Features
 
-See [DOCS.md]('./DOCS.md').
+See [DOCS.md]('./DOCS.md') for types/function information.
+
+**To use with SQLite3:**
+  - install the `sqlite3` optional dependency: `npm i sqlite3`
+  - `import { create } from 'reql-bridge/sqlite3';`
+
+**To use with PostgreSQL:**
+  - install the `pg` optional dependency: `npm i pg`
+  - `import { create } from 'reql-bridge/postgre';`
 
 ## Building & Testing
 
