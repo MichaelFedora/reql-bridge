@@ -1,5 +1,5 @@
 import { Datum, Value, DatumPartial } from '../types';
-import { resolveHValue, safen } from '../internal/util';
+import { resolveHValue, safen } from '../common/util';
 import { SelectableDatum, makeSelector } from '../common/selectable';
 import { AbstractDatumPartial } from '../common/datum';
 

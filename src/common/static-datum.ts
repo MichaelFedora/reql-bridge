@@ -1,5 +1,5 @@
 import { Datum, Value, DatumPartial, DeepPartial } from '../types';
-import { resolveHValue, deepPartialToPredicate } from '../internal/util';
+import { resolveHValue, deepPartialToPredicate } from './util';
 import { SelectableDatum, makeSelector } from './selectable';
 import { AbstractDatumPartial } from './datum';
 import { QueryEntry } from './query-entry';

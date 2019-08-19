@@ -1,6 +1,6 @@
 import { SingleSelectionPartial, Value, SchemaEntry, Datum, WriteResult, DeepPartial, SingleSelection } from '../types';
-import { WrappedSQLite3Database } from '../internal/sqlite3-wrapper';
-import { resolveHValue, safen, coerceCorrectReturn } from '../internal/util';
+import { WrappedSQLite3Database } from './wrapper';
+import { resolveHValue, safen, coerceCorrectReturn } from '../common/util';
 import { SelectableDatum, makeSelector } from '../common/selectable';
 import { AbstractDatumPartial } from '../common/datum';
 import { resolveQueryStatic } from '../common/static-datum';

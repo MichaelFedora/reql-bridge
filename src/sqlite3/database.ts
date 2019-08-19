@@ -1,10 +1,10 @@
 import { Value, Database, SchemaEntry, Datum, TableChangeResult, Table } from '../types';
-import { WrappedSQLite3Database, create as createSQLite3DB } from '../internal/sqlite3-wrapper';
-import { createQuery } from '../internal/util';
+import { WrappedSQLite3Database, create as createSQLite3DB } from './wrapper';
+import { createQuery } from '../common/util';
 import { expr } from '../common/static-datum';
 import { createTable } from './table';
 
-export class SQLite3ReQLDatabase implements Database {
+export class SQLite3Database implements Database {
 
   private db: WrappedSQLite3Database;
 
@@ -96,7 +96,7 @@ export class SQLite3ReQLDatabase implements Database {
 }
 
 export async function create(options?: { filename?: string, logger?: string }): Promise<Database> {
-  const db = new SQLite3ReQLDatabase();
+  const db = new SQLite3Database();
   await db.init(options);
   return db;
 }

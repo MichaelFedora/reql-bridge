@@ -1,11 +1,11 @@
 import { getLogger, configure, shutdown } from 'log4js';
-import { createSQLite3Database } from './index';
+import { createSQLite3Database, createPostgresDatabase, Database } from './index';
 
 const level = 'trace';
 const layout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %m' };
 const errorLayout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %f:%l %m%n%s' };
 
-(async () => {
+async function test(create: () => Promise<Database>) {
 
   configure({
     appenders: {
@@ -21,7 +21,7 @@ const errorLayout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %f:%l %m%n%s'
 
   const logger = getLogger('db2');
 
-  const db = await createSQLite3Database();
+  const db = await create();
 
   // begin sample
 
@@ -74,6 +74,15 @@ const errorLayout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %f:%l %m%n%s'
   logger.info(await testTbl('value')('type').filter(doc => doc.len().ge(4)).run());
   logger.info('testTbl.get("lime")("value")("type"): ', await testTbl.get('lime')('value')('type').run());
   logger.info('testTbl.filter(doc => doc("key").len().ge(4)): ', await testTbl.filter(doc => doc('key').len().ge(4)).run());
+}
+
+(async () => {
+  for(const db of [
+    createPostgresDatabase,
+    createSQLite3Database,
+  ]) {
+    await test(db);
+  }
 })().then(() => {
   process.exit(0);
 }).catch(e => {

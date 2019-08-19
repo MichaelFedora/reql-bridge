@@ -1,5 +1,5 @@
 import { Table, TablePartial, Value, Datum, SchemaEntry, DeepPartial, WriteResult, SingleSelection, Selection } from '../types';
-import { WrappedSQLite3Database } from '../internal/sqlite3-wrapper';
+import { WrappedSQLite3Database } from './wrapper';
 import { SQLite3Stream } from './stream';
 export declare class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements TablePartial<T> {
     private types;

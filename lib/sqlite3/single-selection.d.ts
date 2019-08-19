@@ -1,5 +1,5 @@
 import { SingleSelectionPartial, Value, SchemaEntry, Datum, WriteResult, DeepPartial, SingleSelection } from '../types';
-import { WrappedSQLite3Database } from '../internal/sqlite3-wrapper';
+import { WrappedSQLite3Database } from './wrapper';
 import { SelectableDatum } from '../common/selectable';
 import { AbstractDatumPartial } from '../common/datum';
 declare class SQLite3SingleSelectionPartial<T = any> extends AbstractDatumPartial<T> implements SingleSelectionPartial<T>, SelectableDatum<T> {

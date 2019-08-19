@@ -1,5 +1,5 @@
 import { Value, Database, SchemaEntry, Datum, TableChangeResult, Table } from '../types';
-export declare class SQLite3ReQLDatabase implements Database {
+export declare class SQLite3Database implements Database {
     private db;
     private readonly typemapsType;
     private readonly typemapsTableName;

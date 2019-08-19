@@ -1,5 +1,5 @@
 import { Stream, StreamPartial, Value, Datum, DeepPartial } from '../types';
-import { WrappedSQLite3Database } from '../internal/sqlite3-wrapper';
+import { WrappedSQLite3Database } from './wrapper';
 import { SelectableStream } from '../common/selectable';
 import { QueryEntry } from '../common/query-entry';
 export declare abstract class SQLite3Stream<T = any> implements StreamPartial<T>, SelectableStream<T> {

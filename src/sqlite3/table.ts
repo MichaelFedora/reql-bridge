@@ -1,6 +1,6 @@
 import { Table, TablePartial, Value, Datum, SchemaEntry, DeepPartial, WriteResult, SingleSelection, Selection, Query } from '../types';
-import { createQuery, resolveHValue, safen, coerceCorrectReturn } from '../internal/util';
-import { WrappedSQLite3Database } from '../internal/sqlite3-wrapper';
+import { createQuery, resolveHValue, safen, coerceCorrectReturn } from '../common/util';
+import { WrappedSQLite3Database } from './wrapper';
 import { SQLite3Stream } from './stream';
 import { expr, exprQuery } from '../common/static-datum';
 import { createSingleSelection } from './single-selection';

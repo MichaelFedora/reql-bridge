@@ -1,6 +1,6 @@
 import { Stream, StreamPartial, Value, Datum, DeepPartial } from '../types';
-import { WrappedSQLite3Database } from '../internal/sqlite3-wrapper';
-import { resolveHValue, deepPartialToPredicate } from '../internal/util';
+import { WrappedSQLite3Database } from './wrapper';
+import { resolveHValue, deepPartialToPredicate } from '../common/util';
 import { createQueryDatum } from './query-datum';
 import { SelectableStream } from '../common/selectable';
 import { QueryEntry } from '../common/query-entry';
