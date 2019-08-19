@@ -1,5 +1,5 @@
 export declare type DeepPartial<T> = T | {
-    [P in keyof T]?: T[P] extends Array<infer U1> ? Array<DeepPartial<U1>> : T[P] extends ReadonlyArray<infer U2> ? ReadonlyArray<DeepPartial<U2>> : DeepPartial<T[P]>;
+    [P in keyof T]?: T[P] extends Array<infer U1> ? Array<DeepPartial<U1>> : T[P] extends readonly (infer U2)[] ? readonly DeepPartial<U2>[] : DeepPartial<T[P]>;
 };
 export interface ValueChange<T = any> {
     old_val?: T;

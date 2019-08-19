@@ -55,13 +55,18 @@ to determine what it category it should use.
 
 See [DOCS.md]('./DOCS.md') for types/function information.
 
+- `npm i reql-bridge --no-optional` (* not on NPM yet)
+- `npm i https://github.com/MichaelFedora/reql-bridge.git --no-optional`
+
 **To use with SQLite3:**
   - install the `sqlite3` optional dependency: `npm i sqlite3`
-  - `import { create } from 'reql-bridge/sqlite3';`
+  - `import { createSQLite3Database } from 'reql-bridge';`
+  - `const db = createSQLite3Database({ filename: ':memory:' , logger: 'my-category.sqlite3' });`
 
 **To use with PostgreSQL:**
   - install the `pg` optional dependency: `npm i pg`
-  - `import { create } from 'reql-bridge/postgre';`
+  - `import { createPostgreDatabase } from 'reql-bridge';`
+  - `const db = createPostgreDatabase({ logger: 'my-category.pg' });`
 
 ## Building & Testing
 

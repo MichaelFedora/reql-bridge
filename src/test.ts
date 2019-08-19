@@ -1,5 +1,5 @@
 import { getLogger, configure, shutdown } from 'log4js';
-import { create as createReQLSQLite3DB } from './data/database';
+import { createSQLite3Database } from './index';
 
 const level = 'trace';
 const layout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %m' };
@@ -21,7 +21,7 @@ const errorLayout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %f:%l %m%n%s'
 
   const logger = getLogger('db2');
 
-  const db = await createReQLSQLite3DB();
+  const db = await createSQLite3Database();
 
   // begin sample
 
