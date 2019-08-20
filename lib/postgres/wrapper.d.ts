@@ -1,4 +1,4 @@
-import { QueryResultBase } from 'pg';
+import { Client, PoolConfig, QueryResultBase } from 'pg';
 export interface WrappedPostgresDatabase {
     close(): Promise<void>;
     query<T = any>(query: string, values?: any[]): Promise<ActualQueryResult<T>>;
@@ -15,7 +15,7 @@ interface ActualQueryResult<T = any> extends QueryResultBase {
     rows: T[];
 }
 export declare function create(options?: {
-    filename?: string;
     logger?: string;
-}): Promise<WrappedPostgresDatabase>;
+    client?: Client;
+} & PoolConfig): Promise<WrappedPostgresDatabase>;
 export default create;

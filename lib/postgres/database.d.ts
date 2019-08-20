@@ -22,7 +22,7 @@ export declare class PostgresDatabase implements Database {
     close(): Promise<void>;
 }
 export declare function create(options?: {
-    filename?: string;
     logger?: string;
-}): Promise<Database>;
+    client?: Client;
+} & PoolConfig): Promise<Database>;
 export default create;

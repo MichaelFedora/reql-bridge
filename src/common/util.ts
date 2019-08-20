@@ -26,20 +26,6 @@ export function deepPartialToPredicate<T = any>(obj: DeepPartial<T>): (doc: Datu
   return (doc: Datum<T>) => _dptpRecurse(doc, obj);
 }
 
-export function safen(value: any) {
-  switch(typeof(value)) {
-    case 'number':
-        return value;
-    case 'string':
-    case 'object':
-    default:
-      let str = JSON.stringify(value).replace(/'/g, `''`).replace(/\\"/g, '"').replace(/^"|"$/g, `'`);
-      if(str[0] !== `'`) str = `'` + str;
-      if(str[str.length - 1] !== `'`) str += `'`;
-      return str;
-  }
-}
-
 export function coerceCorrectReturn<T = any>(obj: any, types: SchemaEntry[]): T {
   const boop: any = { }; // make boop[key] null or skip?
   for(const key in obj) if(obj[key] == null) { boop[key] = null; } else {

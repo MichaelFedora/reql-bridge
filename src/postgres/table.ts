@@ -1,11 +1,12 @@
 import { Table, TablePartial, Value, Datum, SchemaEntry, DeepPartial, WriteResult, SingleSelection, Selection, Query } from '../types';
-import { createQuery, resolveHValue, safen, coerceCorrectReturn } from '../common/util';
+import { createQuery, resolveHValue, coerceCorrectReturn } from '../common/util';
 import { WrappedPostgresDatabase } from './wrapper';
 import { PostgresStream } from './stream';
 import { expr, exprQuery } from '../common/static-datum';
 import { createSingleSelection } from './single-selection';
 import { createSelection } from './selection';
 import { makeStreamSelector } from '../common/selectable';
+import { safen } from './util';
 
 export class PostgresTablePartial<T = any> extends PostgresStream<T> implements TablePartial<T> {
 
@@ -35,10 +36,10 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
         if(kill) return 0;
 
         const poost = (post ? ` WHERE ${post}` : '') + (limit ? `LIMIT ${limit}` : '');
-        return this.db.get<{ 'COUNT(*)': number }>(`SELECT COUNT(*) FROM [${tableName}]${poost}`)
+        return this.db.get<{ 'COUNT(*)': number }>(`SELECT COUNT(*) FROM ${JSON.stringify(tableName)}${poost}`)
           .then(a => limit ? Math.min(a['COUNT(*)'], limit) : a['COUNT(*)']);
       }
-      return this.db.get<{ 'COUNT(*)': number }>(`SELECT COUNT(*) FROM [${tableName}]`).then(a => a['COUNT(*)']);
+      return this.db.get<{ 'COUNT(*)': number }>(`SELECT COUNT(*) FROM ${JSON.stringify(tableName)}`).then(a => a['COUNT(*)']);
     }));
   }
 
@@ -50,12 +51,12 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
         if(kill) return { deleted: 0, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 1 };
 
         const poost = (post ? ` WHERE ${post}` : '') + (limit ? `LIMIT ${limit}` : '');
-        return this.db.exec(`DELETE FROM [${tableName}]${poost}`).then(
+        return this.db.exec(`DELETE FROM ${JSON.stringify(tableName)}${poost}`).then(
           () => ({ deleted: 1, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 0 }),
           e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
       }
 
-      return this.db.exec(`DELETE TABLE IF EXISTS [${tableName}]`).then(
+      return this.db.exec(`DELETE TABLE IF EXISTS ${JSON.stringify(tableName)}`).then(
         () => ({ deleted: 1, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 0 }),
         e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
     }));
@@ -92,29 +93,26 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
       let repValues = '';
       for(const k in obj) if(obj[k] != null) {
         if(!repKeys) {
-          repKeys = `[${k}]`;
+          repKeys = `${JSON.stringify(k)}`;
           repValues = `${safen(obj[k])}`;
         } else {
-          repKeys += `, [${k}]`;
+          repKeys += `, ${JSON.stringify(k)}`;
           repValues += `, ${safen(obj[k])}`;
         }
       }
 
-      let query = `INSERT`;
-      if(options && options.conflict === 'replace')
-          query += ' OR REPLACE';
-      query += ` INTO [${tableName}] (${repKeys}) VALUES (${repValues})`;
+      let query = `INSERT INTO ${JSON.stringify(tableName)} (${repKeys}) VALUES (${repValues})`;
 
-      if(options && options.conflict === 'update') {
+      if(options && (options.conflict === 'update' || options.conflict === 'replace')) {
         const primaryKey = await this.db.getPrimaryKey(tableName);
         let set = '';
         for(const k in obj) if(obj[k] != null) {
           if(!set)
-            set = `[${k}]=excluded.[${k}]`;
+            set = `${JSON.stringify(k)}=excluded.${JSON.stringify(k)}`;
           else
-            set += `, [${k}]=excluded.[${k}]`;
+            set += `, ${JSON.stringify(k)}=excluded.${JSON.stringify(k)}`;
         }
-        query += ` ON CONFLICT([${primaryKey}]) DO UPDATE SET ${set}`;
+        query += ` ON CONFLICT(${JSON.stringify(primaryKey)}) DO UPDATE SET ${set}`;
       }
       const ret: WriteResult<T> = await this.db.exec(query).then(
         () => ({ deleted: 0, skipped: 0, errors: 0, inserted: 1, replaced: 0, unchanged: 0 }),
@@ -131,7 +129,7 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
       if(kill) return [];
 
       const poost = (post ? ' WHERE ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
-      return this.db.all<T[]>(`SELECT ${select} FROM [${tableName}]${poost}`).then(async rs => {
+      return this.db.all<T[]>(`SELECT ${select} FROM ${JSON.stringify(tableName)}${poost}`).then(async rs => {
         const types = await resolveHValue(this.types);
         let res: any[] = rs.map(r => coerceCorrectReturn<T>(r, types));
         const query = this.query.slice(cmdsApplied);
@@ -141,7 +139,7 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
         return res;
       });
     }
-    return this.db.all<T[]>(`SELECT * FROM [${tableName}]`).then(async rs => {
+    return this.db.all<T[]>(`SELECT * FROM ${JSON.stringify(tableName)}`).then(async rs => {
       const types = await resolveHValue(this.types);
       return rs.map(r => coerceCorrectReturn<T>(r, types));
     });

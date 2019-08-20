@@ -1,7 +1,8 @@
 import { Datum, Value, DatumPartial } from '../types';
-import { resolveHValue, safen } from '../common/util';
+import { resolveHValue } from '../common/util';
 import { SelectableDatum, makeSelector } from '../common/selectable';
 import { AbstractDatumPartial } from '../common/datum';
+import { safen } from './util';
 
 class PostgresQueryDatumPartial<T = any> extends AbstractDatumPartial<T> implements DatumPartial<T>, SelectableDatum<T> {
   constructor() { super(); }

@@ -1,5 +1,6 @@
 import { Logger, getLogger } from '@log4js-node/log4js-api';
 import { Pool, Client, PoolConfig, ClientBase, Submittable, QueryArrayConfig, QueryConfig, QueryResultBase } from 'pg';
+import { safen } from './util';
 
 export interface WrappedPostgresDatabase {
   close(): Promise<void>;
@@ -38,6 +39,7 @@ class PostgresDatabase implements WrappedPostgresDatabase {
     if(options.client)
       this._client = options.client;
     this.logger = getLogger(options.logger);
+    this.options = options;
   }
 
   async init(): Promise<void> {
@@ -59,7 +61,7 @@ class PostgresDatabase implements WrappedPostgresDatabase {
   }
 
   public get<T = any>(query: string, values?: any[]): Promise<T> {
-    this.logger.trace('Query: ' + (values
+    this.logger.trace('Get: ' + (values
       ? values.reduce((acc, v, i) => acc.replace('$' + i, String(v)), query)
       : query));
 
@@ -79,23 +81,34 @@ class PostgresDatabase implements WrappedPostgresDatabase {
       ? values.reduce((acc, v, i) => acc.replace('$' + i, String(v)), query)
       : query));
 
-    return this.client.query(query, values).then(a => null);
+    return this.client.query(query, values).catch(e => {
+      this.logger.error(e);
+      throw e;
+    }) as any;
   }
 
   // extensions
 
   public async getPrimaryKey(tableName: string): Promise<string> {
-    return this.query<{ name: string }>(`SELECT name FROM pragma_table_info('${tableName}') where pk=1;`)
-      .then(a => a.rows && a.rows.length && a.rows[0].name);
+    return this.query<{ name: string }>(`
+    SELECT a.attname as name
+    FROM   pg_index i
+    JOIN   pg_attribute a ON a.attrelid = i.indrelid
+                         AND a.attnum = ANY(i.indkey)
+    WHERE  i.indrelid = ${safen(tableName)}::regclass
+    AND    i.indisprimary;`).then(a => a.rows && a.rows.length && a.rows[0].name);
   }
 
   public async getKeys(tableName: string): Promise<{ name: string, primary?: boolean }[]> {
-    return this.query<{ name: string, pk: number }>(`SELECT name,pk FROM pragma_table_info('${tableName}')`)
-        .then(res => res.rows.map(a => (a.pk ? { name: a.name, primary: true } : { name: a.name })));
+    const columns = await this.query<{ name: string }>
+      (`SELECT column_name AS name FROM information_schema.columns WHERE table_name=${safen(tableName)};`)
+      .then(a => a.rows);
+    const primaryKey = await this.getPrimaryKey(tableName);
+    return columns.map(a => { return primaryKey === a.name ? { name: a.name, primary: true } : a; });
   }
 }
 
-export async function create(options?: { filename?: string, logger?: string }): Promise<WrappedPostgresDatabase> {
+export async function create(options?: { logger?: string, client?: Client } & PoolConfig): Promise<WrappedPostgresDatabase> {
   const db = new PostgresDatabase(options);
   await db.init();
   return db;

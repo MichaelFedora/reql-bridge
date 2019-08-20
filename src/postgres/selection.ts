@@ -1,9 +1,10 @@
 import { Selection, SelectionPartial, Value, SchemaEntry, Datum, WriteResult, DeepPartial } from '../types';
 import { WrappedPostgresDatabase } from './wrapper';
-import { resolveHValue, createQuery, coerceCorrectReturn, safen } from '../common/util';
+import { resolveHValue, createQuery, coerceCorrectReturn } from '../common/util';
 import { PostgresStream } from './stream';
 import { expr, exprQuery } from '../common/static-datum';
 import { makeStreamSelector } from '../common/selectable';
+import { safen } from './util';
 
 export class PostgresSelectionPartial<T = any> extends PostgresStream<T> implements SelectionPartial<T> {
 
@@ -19,14 +20,14 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
 
     const index = await resolveHValue(this.index);
     if(keys[0] === '*')
-      return `[${index}] IS NOT NULL`;
+      return `${JSON.stringify(index)} IS NOT NULL`;
 
     let selection = '';
     for(const key of keys) {
       if(!selection) {
-        selection = `[${index}]=${safen(key)}`;
+        selection = `${JSON.stringify(index)}=${safen(key)}`;
       } else {
-        selection += `OR [${index}]=${safen(key)}`;
+        selection += `OR ${JSON.stringify(index)}=${safen(key)}`;
       }
     }
     return selection;
@@ -47,10 +48,11 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
         const poost = (post ? ' AND ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
         return this.db.get<{
           'COUNT(*)': number
-        }>(`SELECT COUNT(*) FROM [${tableName}] WHERE ${selection}${poost}`)
+        }>(`SELECT COUNT(*) FROM ${JSON.stringify(tableName)} WHERE ${selection}${poost}`)
           .then(a => limit ? Math.min(a['COUNT(*)'], limit) : a['COUNT(*)']);
       }
-      return this.db.get<{ 'COUNT(*)': number }>(`SELECT COUNT(*) FROM [${tableName}] WHERE ${selection}`).then(a => a['COUNT(*)']);
+      return this.db.get<{ 'COUNT(*)': number }>
+        (`SELECT COUNT(*) FROM ${JSON.stringify(tableName)} WHERE ${selection}`).then(a => a['COUNT(*)']);
     }));
   }
 
@@ -63,11 +65,11 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
         if(kill) return { deleted: 0, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 1 };
 
         const poost = (post ? ' AND ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
-        return this.db.exec(`DELETE FROM [${tableName}] WHERE ${selection}${poost}`).then(
+        return this.db.exec(`DELETE FROM ${JSON.stringify(tableName)} WHERE ${selection}${poost}`).then(
           () => ({ deleted: 1, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 0 }),
           e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
       }
-      return this.db.exec(`DELETE FROM [${tableName}] WHERE ${selection}`).then(
+      return this.db.exec(`DELETE FROM ${JSON.stringify(tableName)} WHERE ${selection}`).then(
         () => ({ deleted: 1, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 0 }),
         e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
     }));
@@ -89,7 +91,7 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
       if(kill) return [];
 
       const poost = (post ? ' AND ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
-      return this.db.all<T[]>(`SELECT ${select} FROM [${tableName}] WHERE ${selection}${poost}`).then(async rs => {
+      return this.db.all<T[]>(`SELECT ${select} FROM ${JSON.stringify(tableName)} WHERE ${selection}${poost}`).then(async rs => {
         const types = await resolveHValue(this.types);
         let res: any[] = rs.map(r => coerceCorrectReturn<T>(r, types));
         const query = this.query.slice(cmdsApplied);
@@ -99,7 +101,7 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
         return res;
       });
     }
-    return this.db.all<T[]>(`SELECT * FROM [${tableName}] WHERE ${selection}`).then(async rs => {
+    return this.db.all<T[]>(`SELECT * FROM ${JSON.stringify(tableName)} WHERE ${selection}`).then(async rs => {
       const types = await resolveHValue(this.types);
       return rs.map(r => coerceCorrectReturn<T>(r, types));
     });

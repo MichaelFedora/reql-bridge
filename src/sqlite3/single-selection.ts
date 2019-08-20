@@ -1,9 +1,10 @@
 import { SingleSelectionPartial, Value, SchemaEntry, Datum, WriteResult, DeepPartial, SingleSelection } from '../types';
 import { WrappedSQLite3Database } from './wrapper';
-import { resolveHValue, safen, coerceCorrectReturn } from '../common/util';
+import { resolveHValue, coerceCorrectReturn } from '../common/util';
 import { SelectableDatum, makeSelector } from '../common/selectable';
 import { AbstractDatumPartial } from '../common/datum';
 import { resolveQueryStatic } from '../common/static-datum';
+import { safen } from './util';
 
 class SQLite3SingleSelectionPartial<T = any> extends AbstractDatumPartial<T> implements SingleSelectionPartial<T>, SelectableDatum<T> {
   constructor(private db: WrappedSQLite3Database, private tableName: Value<string>,

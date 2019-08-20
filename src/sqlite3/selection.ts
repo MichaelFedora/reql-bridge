@@ -1,9 +1,10 @@
 import { Selection, SelectionPartial, Value, SchemaEntry, Datum, WriteResult, DeepPartial } from '../types';
 import { WrappedSQLite3Database } from './wrapper';
-import { resolveHValue, createQuery, coerceCorrectReturn, safen } from '../common/util';
+import { resolveHValue, createQuery, coerceCorrectReturn } from '../common/util';
 import { SQLite3Stream } from './stream';
 import { expr, exprQuery } from '../common/static-datum';
 import { makeStreamSelector } from '../common/selectable';
+import { safen } from './util';
 
 export class SQLite3SelectionPartial<T = any> extends SQLite3Stream<T> implements SelectionPartial<T> {
 

@@ -1,9 +1,10 @@
 import { SingleSelectionPartial, Value, SchemaEntry, Datum, WriteResult, DeepPartial, SingleSelection } from '../types';
 import { WrappedPostgresDatabase } from './wrapper';
-import { resolveHValue, safen, coerceCorrectReturn } from '../common/util';
+import { resolveHValue, coerceCorrectReturn } from '../common/util';
 import { SelectableDatum, makeSelector } from '../common/selectable';
 import { AbstractDatumPartial } from '../common/datum';
 import { resolveQueryStatic } from '../common/static-datum';
+import { safen } from './util';
 
 class PostgresSingleSelectionPartial<T = any> extends AbstractDatumPartial<T> implements SingleSelectionPartial<T>, SelectableDatum<T> {
   constructor(private db: WrappedPostgresDatabase, private tableName: Value<string>,
@@ -50,7 +51,7 @@ class PostgresSingleSelectionPartial<T = any> extends AbstractDatumPartial<T> im
     const tableName = await resolveHValue(this.tableName);
 
     if(!this.query || !this.query.length) {
-      return this.db.get<T>(`SELECT * FROM [${tableName}] WHERE [${index}]=${safen(key)}`)
+      return this.db.get<T>(`SELECT * FROM ${JSON.stringify(tableName)} WHERE ${JSON.stringify(index)}=${safen(key)}`)
         .then(async r => coerceCorrectReturn<T>(r, await resolveHValue(this.types)));
     }
 
@@ -72,39 +73,39 @@ class PostgresSingleSelectionPartial<T = any> extends AbstractDatumPartial<T> im
 
     switch(cmd) {
       case 'sel':
-        query = `SELECT ${params[0]} FROM [${tableName}] WHERE [${index}]=${safen(key)}`;
+        query = `SELECT ${params[0]} FROM ${JSON.stringify(tableName)} WHERE ${JSON.stringify(index)}=${safen(key)}`;
         sel = params[0];
         break;
       case 'update':
         let set = '';
         for(const k in params[0]) if(params[0][k] != null) {
           if(!set)
-            set = `[${k}]=${params[0][k]}`;
+            set = `${JSON.stringify(k)}=${params[0][k]}`;
           else
-            set += `, [${k}]=${params[0][k]}`;
+            set += `, ${JSON.stringify(k)}=${params[0][k]}`;
         }
-        query = `UPDATE [${tableName}] SET ${set} WHERE [${index}]=${safen(key)}`;
+        query = `UPDATE ${JSON.stringify(tableName)} SET ${set} WHERE ${JSON.stringify(index)}=${safen(key)}`;
         break;
       case 'replace':
         let repKeys = '';
         let repValues = '';
         for(const k in params[0]) if(params[0][k] != null) {
           if(!repKeys) {
-            repKeys = `[${k}]`;
+            repKeys = `${JSON.stringify(k)}`;
             repValues = `${params[0][k]}`;
           } else {
-            repKeys += `, [${k}]`;
+            repKeys += `, ${JSON.stringify(k)}`;
             repValues += `, ${params[0][k]}`;
           }
         }
-        query = `REPLACE INTO [${tableName}] (${repKeys}) VALUES (${repValues}) WHERE ${[index]}=${safen(key)}`;
+        query = `REPLACE INTO ${JSON.stringify(tableName)} (${repKeys}) VALUES (${repValues}) WHERE ${[index]}=${safen(key)}`;
         break;
       case 'delete':
-        query = `DELETE FROM [${tableName}] WHERE ${[index]}=${safen(key)}`;
+        query = `DELETE FROM ${JSON.stringify(tableName)} WHERE ${[index]}=${safen(key)}`;
         break;
 
       default:
-        query = `SELECT * FROM [${tableName}] WHERE ${[index]}=${safen(key)}`;
+        query = `SELECT * FROM ${JSON.stringify(tableName)} WHERE ${[index]}=${safen(key)}`;
     }
 
     const value = await this.db.get<T>(query).then(async r => coerceCorrectReturn<T>(r, await resolveHValue(this.types)))

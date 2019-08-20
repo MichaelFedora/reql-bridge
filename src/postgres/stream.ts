@@ -76,7 +76,7 @@ export abstract class PostgresStream<T = any> implements StreamPartial<T>, Selec
     const tableName = await resolveHValue(this.tableName);
     const primaryKey = await this.db.getPrimaryKey(tableName);
 
-    let select = this.sel ? `[${this.sel}]` : '*';
+    let select = this.sel ? `${JSON.stringify(this.sel)}` : '*';
     let post = undefined;
     let limit = undefined;
     let cmdsApplied = 0;
@@ -102,7 +102,8 @@ export abstract class PostgresStream<T = any> implements StreamPartial<T>, Selec
             const query = await (res as any).compile();
 
             if(!post)
-              post = `[${primaryKey}] in (SELECT [${primaryKey}] FROM [${tableName}] WHERE ${query})`;
+              post = `${JSON.stringify(primaryKey)} in (SELECT ${JSON.stringify(primaryKey)}`
+                + ` FROM ${JSON.stringify(tableName)} WHERE ${query})`;
             else
               post += ` AND (${query})`;
 
@@ -120,7 +121,7 @@ export abstract class PostgresStream<T = any> implements StreamPartial<T>, Selec
         case 'pluck':
           if(!select.endsWith('*'))
             throw new Error('Cannot pluck on an already selected or plucked stream!');
-          select = select.slice(0, -1) + params.map(a => `[${a}]`).join(', ');
+          select = select.slice(0, -1) + params.map(a => `${JSON.stringify(a)}`).join(', ');
           cmdsApplied++;
           break;
         case 'limit':

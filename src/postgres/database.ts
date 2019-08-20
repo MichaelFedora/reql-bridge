@@ -4,6 +4,7 @@ import { createQuery } from '../common/util';
 import { expr } from '../common/static-datum';
 import { createTable } from './table';
 import { WrappedPostgresDatabase, create as createWrappedPostgresDB } from './wrapper';
+import { safen } from './util';
 
 export class PostgresDatabase implements Database {
 
@@ -44,9 +45,9 @@ export class PostgresDatabase implements Database {
     let keys = '';
     for(const key of schema) {
       if(!keys) { // primary key
-        keys = `[${key.name}] ${this.valueTypeMap[key.type] || 'text'} primary key`;
+        keys = `${JSON.stringify(key.name)} ${this.valueTypeMap[key.type] || 'text'} primary key`;
       } else {
-        keys += `, [${key.name}] ${this.valueTypeMap[key.type] || 'text'}`;
+        keys += `, ${JSON.stringify(key.name)} ${this.valueTypeMap[key.type] || 'text'}`;
       }
 
       if(key.index)
@@ -59,10 +60,11 @@ export class PostgresDatabase implements Database {
     return expr(createQuery(async () => {
       if(typeof tableName !== 'string')
           tableName = await tableName.run();
-      await this.db.exec(`CREATE TABLE IF NOT EXISTS [${tableName}] (${keys})`);
+      await this.db.exec(`CREATE TABLE IF NOT EXISTS ${JSON.stringify(tableName)} (${keys})`);
       await this.typemaps.insert({ table: tableName, types: JSON.stringify(schema) }, { conflict: 'replace' }).run();
       for(const index of indexes)
-        await this.db.exec(`CREATE INDEX [${tableName}_${index}] ON [${tableName}]([${index}])`);
+        await this.db.exec
+          (`CREATE INDEX ${JSON.stringify(tableName + '_' + index)} ON ${JSON.stringify(tableName)}(${JSON.stringify(index)})`);
 
       return { tables_created: 1 } as TableChangeResult;
     }));
@@ -72,7 +74,7 @@ export class PostgresDatabase implements Database {
     return expr(createQuery(async () => {
       if(typeof tableName !== 'string')
           tableName = await tableName.run();
-      await this.db.exec(`DROP TABLE IF EXISTS [${tableName}]`);
+      await this.db.exec(`DROP TABLE IF EXISTS ${JSON.stringify(tableName)}`);
       return { tables_dropped: 1 } as TableChangeResult;
     }));
   }
@@ -81,7 +83,7 @@ export class PostgresDatabase implements Database {
     return expr(createQuery(async () => {
       const result = await this.db.all<{
         name: string
-      }[]>(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
+      }[]>(`SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public'`);
       return result.map(a => a.name);
     }));
   }
@@ -98,7 +100,7 @@ export class PostgresDatabase implements Database {
   }
 }
 
-export async function create(options?: { filename?: string, logger?: string }): Promise<Database> {
+export async function create(options?: { logger?: string, client?: Client } & PoolConfig): Promise<Database> {
   const db = new PostgresDatabase();
   await db.init(options);
   return db;
