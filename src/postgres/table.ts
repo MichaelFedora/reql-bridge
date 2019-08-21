@@ -3,7 +3,7 @@ import {
   Value, Datum, SchemaEntry, DeepPartial, WriteResult,
   SingleSelection, Selection, Query, Stream
 } from '../types';
-import { createQuery, resolveHValue, coerceCorrectReturn } from '../common/util';
+import { createQuery, resolveValue, coerceCorrectReturn } from '../common/util';
 import { WrappedPostgresDatabase } from './wrapper';
 import { PostgresStream } from './stream';
 import { expr, exprQuery } from '../common/static-datum';
@@ -14,7 +14,7 @@ import { safen } from './util';
 export class PostgresTablePartial<T = any> extends PostgresStream<T> implements TablePartial<T> {
 
   private get primaryIndexGetter(): Query<string> {
-    return createQuery(async () => this.db.getPrimaryKey(await resolveHValue(this.tableName)));
+    return createQuery(async () => this.db.getPrimaryKey(await resolveValue(this.tableName)));
   }
 
   constructor(db: WrappedPostgresDatabase, tableName: Value<string>, private types: Value<SchemaEntry[]>) { super(db, tableName); }
@@ -33,7 +33,7 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
 
   count(): Datum<number> {
     return expr(createQuery(async() => {
-      const tableName = await resolveHValue(this.tableName);
+      const tableName = await resolveValue(this.tableName);
       if(this.query.length) {
         const { post, kill, limit } = await this.computeQuery();
         if(kill) return 0;
@@ -50,7 +50,7 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
 
   delete(): Datum<WriteResult<T>> {
     return expr(createQuery<WriteResult<T>>(async() => {
-      const tableName = await resolveHValue(this.tableName);
+      const tableName = await resolveValue(this.tableName);
       if(this.query.length) {
         const { post, kill, limit } = await this.computeQuery();
         if(kill) return { deleted: 0, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 1 };
@@ -71,7 +71,7 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
 
   get(key: any): SingleSelection<T> {
     return createSingleSelection(this.db, this.tableName, key, createQuery(async () => {
-      const tableName = await resolveHValue(this.tableName);
+      const tableName = await resolveValue(this.tableName);
       return this.db.getPrimaryKey(tableName);
     }), this.types);
   }
@@ -85,7 +85,7 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
       index = (values.pop() as { index: string }).index;
     } else {
       index = createQuery(async () => {
-        const tableName = await resolveHValue(this.tableName);
+        const tableName = await resolveValue(this.tableName);
         return this.db.getPrimaryKey(tableName);
       });
     }
@@ -94,7 +94,7 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
 
   insert(obj: T, options?: { conflict: 'error' | 'replace' | 'update' }): Datum<WriteResult<T>> {
     return expr(createQuery(async () => {
-      const tableName = await resolveHValue(this.tableName);
+      const tableName = await resolveValue(this.tableName);
 
       let repKeys = '';
       let repValues = '';
@@ -129,7 +129,7 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
   }
 
   async run(): Promise<T[]> {
-    const tableName = await resolveHValue(this.tableName);
+    const tableName = await resolveValue(this.tableName);
     if(this.sel || this.query.length) {
       const { select, post, kill, limit, cmdsApplied } = await this.computeQuery();
 
@@ -137,11 +137,11 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
 
       const poost = (post ? ' WHERE ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
       return this.db.all<T[]>(`SELECT ${select} FROM ${JSON.stringify(tableName)}${poost}`).then(async rs => {
-        const types = await resolveHValue(this.types);
+        const types = await resolveValue(this.types);
         let res: any[] = rs.map(r => coerceCorrectReturn<T>(r, types));
 
         if(this.sel) {
-          const sel = await resolveHValue(this.sel);
+          const sel = await resolveValue(this.sel);
           res = res.map(a => a[sel]);
         }
 
@@ -157,7 +157,7 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
       });
     }
     return this.db.all<T[]>(`SELECT * FROM ${JSON.stringify(tableName)}`).then(async rs => {
-      const types = await resolveHValue(this.types);
+      const types = await resolveValue(this.types);
       return rs.map(r => coerceCorrectReturn<T>(r, types));
     });
   }

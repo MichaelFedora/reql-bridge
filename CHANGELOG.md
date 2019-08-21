@@ -1,3 +1,8 @@
+# v2.1
+
+- Added `branch` and `do` to Static Datums (`expr`)
+- Fixed `add` and `sub` actually being exponential in static datums
+
 # v2.0
 
 Moved from `reql-sqlite3` because we are now supporting multiple databases!

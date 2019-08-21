@@ -1,6 +1,6 @@
 import { Selection, SelectionPartial, Value, SchemaEntry, Datum, WriteResult, DeepPartial, Stream } from '../types';
 import { WrappedPostgresDatabase } from './wrapper';
-import { resolveHValue, createQuery, coerceCorrectReturn } from '../common/util';
+import { resolveValue, createQuery, coerceCorrectReturn } from '../common/util';
 import { PostgresStream } from './stream';
 import { expr, exprQuery } from '../common/static-datum';
 import { safen } from './util';
@@ -13,11 +13,11 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
   }
 
   private async makeSelection(): Promise<string> {
-    const keys = await resolveHValue(this.keys);
+    const keys = await resolveValue(this.keys);
     if(!keys.length)
       return 'false';
 
-    const index = await resolveHValue(this.index);
+    const index = await resolveValue(this.index);
     if(keys[0] === '*')
       return `${JSON.stringify(index)} IS NOT NULL`;
 
@@ -38,7 +38,7 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
 
   count(): Datum<number> {
     return expr(createQuery(async() => {
-      const tableName = await resolveHValue(this.tableName);
+      const tableName = await resolveValue(this.tableName);
       const selection = await this.makeSelection();
       if(this.query.length) {
         const { post, kill, limit } = await this.computeQuery();
@@ -57,7 +57,7 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
 
   delete(): Datum<WriteResult<T>> {
     return expr(createQuery<WriteResult<T>>(async() => {
-      const tableName = await resolveHValue(this.tableName);
+      const tableName = await resolveValue(this.tableName);
       const selection = await this.makeSelection();
       if(this.query.length) {
         const { post, kill, limit } = await this.computeQuery();
@@ -82,7 +82,7 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
   }
 
   async run(): Promise<T[]> {
-    const tableName = await resolveHValue(this.tableName);
+    const tableName = await resolveValue(this.tableName);
     const selection = await this.makeSelection();
     if(this.sel || this.query.length) {
       const { select, post, kill, limit, cmdsApplied } = await this.computeQuery();
@@ -91,11 +91,11 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
 
       const poost = (post ? ' AND ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
       return this.db.all<T[]>(`SELECT ${select} FROM ${JSON.stringify(tableName)} WHERE ${selection}${poost}`).then(async rs => {
-        const types = await resolveHValue(this.types);
+        const types = await resolveValue(this.types);
         let res: any[] = rs.map(r => coerceCorrectReturn<T>(r, types));
 
         if(this.sel) {
-          const sel = await resolveHValue(this.sel);
+          const sel = await resolveValue(this.sel);
           res = res.map(a => a[sel]);
         }
 
@@ -110,7 +110,7 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
       });
     }
     return this.db.all<T[]>(`SELECT * FROM ${JSON.stringify(tableName)} WHERE ${selection}`).then(async rs => {
-      const types = await resolveHValue(this.types);
+      const types = await resolveValue(this.types);
       return rs.map(r => coerceCorrectReturn<T>(r, types));
     });
   }

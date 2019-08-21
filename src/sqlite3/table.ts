@@ -3,7 +3,7 @@ import {
   Value, Datum, SchemaEntry, DeepPartial, WriteResult,
   SingleSelection, Selection, Query, Stream
 } from '../types';
-import { createQuery, resolveHValue, coerceCorrectReturn } from '../common/util';
+import { createQuery, resolveValue, coerceCorrectReturn } from '../common/util';
 import { WrappedSQLite3Database } from './wrapper';
 import { SQLite3Stream } from './stream';
 import { expr, exprQuery } from '../common/static-datum';
@@ -14,7 +14,7 @@ import { safen } from './util';
 export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements TablePartial<T> {
 
   private get primaryIndexGetter(): Query<string> {
-    return createQuery(async () => this.db.getPrimaryKey(await resolveHValue(this.tableName)));
+    return createQuery(async () => this.db.getPrimaryKey(await resolveValue(this.tableName)));
   }
 
   constructor(db: WrappedSQLite3Database, tableName: Value<string>, private types: Value<SchemaEntry[]>) { super(db, tableName); }
@@ -33,7 +33,7 @@ export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements Ta
 
   count(): Datum<number> {
     return expr(createQuery(async() => {
-      const tableName = await resolveHValue(this.tableName);
+      const tableName = await resolveValue(this.tableName);
       if(this.query.length) {
         const { post, kill, limit } = await this.computeQuery();
         if(kill) return 0;
@@ -50,7 +50,7 @@ export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements Ta
 
   delete(): Datum<WriteResult<T>> {
     return expr(createQuery<WriteResult<T>>(async() => {
-      const tableName = await resolveHValue(this.tableName);
+      const tableName = await resolveValue(this.tableName);
       if(this.query.length) {
         const { post, kill, limit } = await this.computeQuery();
         if(kill) return { deleted: 0, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 1 };
@@ -71,7 +71,7 @@ export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements Ta
 
   get(key: any): SingleSelection<T> {
     return createSingleSelection(this.db, this.tableName, key, createQuery(async () => {
-      const tableName = await resolveHValue(this.tableName);
+      const tableName = await resolveValue(this.tableName);
       return this.db.getPrimaryKey(tableName);
     }), this.types);
   }
@@ -85,7 +85,7 @@ export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements Ta
       index = (values.pop() as { index: string }).index;
     } else {
       index = createQuery(async () => {
-        const tableName = await resolveHValue(this.tableName);
+        const tableName = await resolveValue(this.tableName);
         return this.db.getPrimaryKey(tableName);
       });
     }
@@ -94,7 +94,7 @@ export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements Ta
 
   insert(obj: T, options?: { conflict: 'error' | 'replace' | 'update' }): Datum<WriteResult<T>> {
     return expr(createQuery(async () => {
-      const tableName = await resolveHValue(this.tableName);
+      const tableName = await resolveValue(this.tableName);
 
       let repKeys = '';
       let repValues = '';
@@ -132,7 +132,7 @@ export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements Ta
   }
 
   async run(): Promise<T[]> {
-    const tableName = await resolveHValue(this.tableName);
+    const tableName = await resolveValue(this.tableName);
     if(this.sel || this.query.length) {
       const { select, post, kill, limit, cmdsApplied } = await this.computeQuery();
 
@@ -140,11 +140,11 @@ export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements Ta
 
       const poost = (post ? ' WHERE ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
       return this.db.all<T>(`SELECT ${select} FROM [${tableName}]${poost}`).then(async rs => {
-        const types = await resolveHValue(this.types);
+        const types = await resolveValue(this.types);
         let res: any[] = rs.map(r => coerceCorrectReturn<T>(r, types));
 
         if(this.sel) {
-          const sel = await resolveHValue(this.sel);
+          const sel = await resolveValue(this.sel);
           res = res.map(a => a[sel]);
         }
 
@@ -159,7 +159,7 @@ export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements Ta
       });
     }
     return this.db.all<T>(`SELECT * FROM [${tableName}]`).then(async rs => {
-      const types = await resolveHValue(this.types);
+      const types = await resolveValue(this.types);
       return rs.map(r => coerceCorrectReturn<T>(r, types));
     });
   }

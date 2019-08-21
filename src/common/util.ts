@@ -5,7 +5,7 @@ export function createQuery<T = any>(run: () => Promise<T>): Query<T> {
   return query;
 }
 
-export async function resolveHValue<T = any>(value: Value<T>): Promise<T> {
+export async function resolveValue<T = any>(value: Value<T>): Promise<T> {
   if(typeof value['run'] === 'function')
     return await (value as any).run();
   return value as any;

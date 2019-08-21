@@ -34,6 +34,23 @@ export abstract class AbstractDatumPartial<T = any> implements DatumPartial<T> {
     return this as any;
   }
 
+  do<U = any>(func: (value: Datum<T>) => Value<U>): Datum<U> {
+    this.query.push({ cmd: 'do', params: [func] });
+    return this as any;
+  }
+
+  branch<U = any, V = any>(trueAction: Value<U> | (() => Value<U>), falseAction: Value<V> | (() => Value<V>)): Datum<U | V>;
+  branch<U = any, V = any, W = any>(trueAction: Value<U> | (() => Value<U>),
+      test2: Value<any>, test2Action: Value<V> | (() => Value<V>),
+      falseAction: Value<W> | (() => Value<W>)): Datum<U | V | W>;
+  branch<U = any>(trueAction: Value<any> | (() => Value<any>),
+    ...testsActionsAndFalseAction: (Value<any> | (() => Value<any>))[]): Datum<U> {
+    if(testsActionsAndFalseAction.length % 2 < 1)
+      throw new Error('Must have an action for every test, and a false action at the end!');
+    this.query.push({ cmd: 'branch', params: [trueAction, ...testsActionsAndFalseAction] });
+    return this as any;
+  }
+
   // STRING
 
   startsWith(str: Value<string>): T extends string ? Datum<boolean> : never {

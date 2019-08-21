@@ -70,7 +70,7 @@ async function test(create: () => Promise<Database>, log?: string) {
     logger.info('testTbl insert: ', await testTbl.insert({ key: 'lime', value: { type: 'juice' }, count: 0, sale: true }).run());
     logger.info('testTbl insert: ', await testTbl.insert({ key: 'orange', value: { type: 'syrup' }, count: 1, sale: false }).run());
     logger.info('testTbl: ', await testTbl.run());
-    logger.info('testTbl.get("blah"): ', await testTbl.get('foo').run());
+    logger.info('testTbl.get("foo"): ', await testTbl.get('foo').run());
     logger.info('testTbl.getAll({ type: "bar" }, { index: "value" }): ', await testTbl.getAll({ type: 'bar' }, { index: 'value' }).run());
     logger.info('testTbl.insert(update): ',
       await testTbl.insert({ key: 'lime', value: { type: 'bar' } } as any, { conflict: 'update' }).run());
@@ -83,6 +83,8 @@ async function test(create: () => Promise<Database>, log?: string) {
       await testTbl('value')('type').filter(doc => doc.len().ge(4)).run());
     logger.info('testTbl.get("lime")("value")("type"): ', await testTbl.get('lime')('value')('type').run());
     logger.info('testTbl.filter(doc => doc("key").len().ge(4)): ', await testTbl.filter(doc => doc('key').len().ge(4)).run());
+    logger.info('testTbl.get("foo")("count").do(v => v.add(1)).gt(4).branch("yes", () => "no"))',
+      await testTbl.get('foo')('count').do(v => v.add(1)).gt(4).branch<string>('yes', () => 'no').run());
   } catch(e) {
     logger.error(e);
   }

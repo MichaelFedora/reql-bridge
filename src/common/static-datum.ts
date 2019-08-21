@@ -1,5 +1,5 @@
 import { Datum, Value, DatumPartial, DeepPartial } from '../types';
-import { resolveHValue, deepPartialToPredicate } from './util';
+import { resolveValue, deepPartialToPredicate } from './util';
 import { SelectableDatum, makeSelector } from './selectable';
 import { AbstractDatumPartial } from './datum';
 import { QueryEntry } from './query-entry';
@@ -34,14 +34,14 @@ export async function resolveQueryStatic<T = any>(
   query: readonly QueryEntry[],
   initialValue: Value<T>): Promise<T> {
 
-  let value: any = await resolveHValue(initialValue);
+  let value: any = await resolveValue(initialValue);
 
   for(const q of query) {
 
     const params = q.params.slice();
     if(params) { // reduce parameters
       for(let i = 0; i < q.params.length; i++)
-        params[i] = await resolveHValue(params[i]);
+        params[i] = await resolveValue(params[i]);
     }
 
     switch(q.cmd) {
@@ -67,11 +67,38 @@ export async function resolveQueryStatic<T = any>(
         value = Boolean(params.reduce((acc, v) => acc && v, value));
         break;
 
+      case 'do':
+        value = await resolveValue(params[0](expr(value)));
+        break;
+      case 'branch':
+        let testValue = value;
+        let retValue;
+        for(let i = 0; i < params.length; i++) {
+          if(i % 2 < 1) { // if even, it's an action (0, 2, etc)
+            if(testValue) {
+              if(typeof params[i] === 'function')
+                retValue = await resolveValue(params[i](expr(value)));
+              else
+               retValue = params[i];
+              break;
+            }
+          } else if(i === params.length - 1) { // false action
+            if(typeof params[i] === 'function')
+              retValue = await resolveValue(params[i](expr(value)));
+            else
+              retValue = params[i];
+          } else { // odd, is a test (1, 3, etc)
+            testValue = params[i];
+          }
+        }
+        value = retValue;
+        break;
+
       case 'add':
-        value = params.reduce((acc, v) => acc + value, value);
+        value = params.reduce((acc, v) => acc + v, value);
         break;
       case 'sub':
-        value = params.reduce((acc, v) => acc - value, value);
+        value = params.reduce((acc, v) => acc - v, value);
         break;
       case 'mul':
         value = params.reduce((acc, v) => acc * v, value);
@@ -168,7 +195,7 @@ export async function resolveQueryStatic<T = any>(
           throw new Error('Cannot map a non-array value: ' + JSON.stringify(value));
         const newv = [];
         for(const subv of value) {
-          newv.push(await resolveHValue((params[0] as (doc: Datum<typeof subv>) => Datum<any>)(expr(subv))));
+          newv.push(await resolveValue((params[0] as (doc: Datum<typeof subv>) => Datum<any>)(expr(subv))));
         }
         value = newv;
         break;
@@ -179,8 +206,6 @@ export async function resolveQueryStatic<T = any>(
   }
   return value;
 }
-
-export interface SQLite3StaticDatum<T = any> extends SQLite3StaticDatumPartial<T>, Datum<T> { }
 
 export function exprQuery<T = any>(initialValue: Value<T> | Value<T>, query: QueryEntry[]): Datum<T> {
   const datum = makeSelector<T>(new SQLite3StaticDatumPartial<T>(initialValue)) as any;

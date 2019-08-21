@@ -1,5 +1,5 @@
 import { Datum, Value, DatumPartial } from '../types';
-import { resolveHValue } from '../common/util';
+import { resolveValue } from '../common/util';
 import { SelectableDatum, makeSelector } from '../common/selectable';
 import { AbstractDatumPartial } from '../common/datum';
 import { safen } from './util';
@@ -16,7 +16,7 @@ class SQLite3QueryDatumPartial<T = any> extends AbstractDatumPartial<T> implemen
 
   fork(): Datum<T> {
     const child = createQueryDatum<T>();
-    child.query = this.query.slice();
+    (child as any).query = this.query.slice();
     return child as any;
   }
 
@@ -37,7 +37,7 @@ class SQLite3QueryDatumPartial<T = any> extends AbstractDatumPartial<T> implemen
           if(params[i].compile)
             params[i] = safen(await params[i].compile());
           else
-            params[i] = safen(await resolveHValue(params[i]));
+            params[i] = safen(await resolveValue(params[i]));
         }
       }
 
@@ -205,8 +205,6 @@ class SQLite3QueryDatumPartial<T = any> extends AbstractDatumPartial<T> implemen
   }
 }
 
-export interface SQLite3QueryDatum<T = any> extends SQLite3QueryDatumPartial<T>, Datum<T> { }
-
-export function createQueryDatum<T = any>(): SQLite3QueryDatum<T> {
+export function createQueryDatum<T = any>(): Datum<T> {
   return makeSelector<T>(new SQLite3QueryDatumPartial()) as any;
 }

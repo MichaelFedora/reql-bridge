@@ -1,6 +1,6 @@
 import { Stream, StreamPartial, Value, Datum, DeepPartial } from '../types';
 import { WrappedSQLite3Database } from './wrapper';
-import { resolveHValue, deepPartialToPredicate } from '../common/util';
+import { resolveValue, deepPartialToPredicate } from '../common/util';
 import { createQueryDatum } from './query-datum';
 import { SelectableStream } from '../common/selectable';
 import { QueryEntry } from '../common/query-entry';
@@ -75,7 +75,7 @@ export abstract class SQLite3Stream<T = any> implements StreamPartial<T>, Select
     if(!this.query.length)
       return { cmdsApplied: 0, select: `[${this.sel}]` };
 
-    const tableName = await resolveHValue(this.tableName);
+    const tableName = await resolveValue(this.tableName);
     const primaryKey = await this.db.getPrimaryKey(tableName);
 
     let select = this.sel ? `[${this.sel}]` : '*';
@@ -85,7 +85,7 @@ export abstract class SQLite3Stream<T = any> implements StreamPartial<T>, Select
     for(const q of this.query) {
       const params = [];
       for(const p of q.params)
-        params.push(await resolveHValue(p));
+        params.push(await resolveValue(p));
 
       switch(q.cmd) {
         case 'filter':

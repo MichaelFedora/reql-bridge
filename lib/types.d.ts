@@ -38,6 +38,10 @@ export interface DatumPartial<T = any> extends Query<T> {
     or(...bool: Value<boolean>[]): T extends boolean ? Datum<boolean> : never;
     and(...bool: Value<boolean>[]): T extends boolean ? Datum<boolean> : never;
     not(): T extends boolean ? Datum<boolean> : never;
+    do<U = any>(func: (value: Datum<T>) => Value<U>): Datum<U>;
+    branch<U = any, V = any>(trueAction: Value<U> | (() => Value<U>), falseAction: Value<V> | (() => Value<V>)): Datum<U | V>;
+    branch<U = any, V = any, W = any>(trueAction: Value<U> | (() => Value<U>), test2: Value<any>, test2Action: Value<V> | (() => Value<V>), falseAction: Value<W> | (() => Value<W>)): Datum<U | V | W>;
+    branch<U = any>(trueAction: Value<any> | (() => Value<any>), ...testsActionsAndFalseAction: (Value<any> | (() => Value<any>))[]): Datum<U>;
     startsWith(str: Value<string>): T extends string ? Datum<boolean> : never;
     endsWith(str: Value<string>): T extends string ? Datum<boolean> : never;
     substr(str: Value<string>): T extends string ? Datum<boolean> : never;
