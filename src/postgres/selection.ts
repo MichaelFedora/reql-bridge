@@ -1,9 +1,8 @@
-import { Selection, SelectionPartial, Value, SchemaEntry, Datum, WriteResult, DeepPartial } from '../types';
+import { Selection, SelectionPartial, Value, SchemaEntry, Datum, WriteResult, DeepPartial, Stream } from '../types';
 import { WrappedPostgresDatabase } from './wrapper';
 import { resolveHValue, createQuery, coerceCorrectReturn } from '../common/util';
 import { PostgresStream } from './stream';
 import { expr, exprQuery } from '../common/static-datum';
-import { makeStreamSelector } from '../common/selectable';
 import { safen } from './util';
 
 export class PostgresSelectionPartial<T = any> extends PostgresStream<T> implements SelectionPartial<T> {
@@ -85,7 +84,7 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
   async run(): Promise<T[]> {
     const tableName = await resolveHValue(this.tableName);
     const selection = await this.makeSelection();
-    if(this.query.length) {
+    if(this.sel || this.query.length) {
       const { select, post, kill, limit, cmdsApplied } = await this.computeQuery();
 
       if(kill) return [];
@@ -94,10 +93,19 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
       return this.db.all<T[]>(`SELECT ${select} FROM ${JSON.stringify(tableName)} WHERE ${selection}${poost}`).then(async rs => {
         const types = await resolveHValue(this.types);
         let res: any[] = rs.map(r => coerceCorrectReturn<T>(r, types));
-        const query = this.query.slice(cmdsApplied);
-        res = await Promise.all(res.map(r => exprQuery(r, query).run()));
 
+        if(this.sel) {
+          const sel = await resolveHValue(this.sel);
+          res = res.map(a => a[sel]);
+        }
+
+        const query = this.query.slice(cmdsApplied);
+        if(query.length)
+          res = await exprQuery(res, query).run();
+
+        this.sel = undefined;
         this.query = [];
+
         return res;
       });
     }
@@ -112,5 +120,33 @@ export interface PostgresSelection<T = any> extends PostgresSelectionPartial<T>,
 
 export function createSelection<T = any>(db: WrappedPostgresDatabase, tableName: Value<string>,
   keys: Value<any[]>, index: Value<string>, types: Value<SchemaEntry[]>): PostgresSelection<T> {
-    return makeStreamSelector(new PostgresSelectionPartial(db, tableName, keys, index, types)) as any;
+  const instance = new PostgresSelectionPartial<T>(db, tableName, keys, index, types);
+  const o: Selection<T> = Object.assign(
+    (attribute: Value<string | number>) => { instance._sel(attribute); return o; /* override return */ },
+    {
+      // AGGREGATION
+
+      distinct(): Stream<T> { instance.distinct(); return o as any; },
+      limit(n: Value<number>): Stream<T> { instance.limit(n); return o as any; },
+
+      // TRANSFORMS
+
+      count(): Datum<number> { return instance.count(); },
+      map<U = any>(predicate: (doc: Datum<T>) => Datum<U>): Stream<U> { instance.map(predicate); return o as any; },
+      pluck(...fields: (string | number)[]): T extends object ? Stream<Partial<T>> : never { instance.pluck(...fields); return o as any; },
+      filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Selection<T> {
+        instance.filter(predicate);
+        return o as any;
+      },
+
+      // QUERY/etc
+
+      delete(): Datum<WriteResult<T>> { return instance.delete(); },
+
+      fork(): Selection<T> { return instance.fork(); },
+      run() { return instance.run(); }
+    } as SelectionPartial<T>) as any;
+  (o as any).__proto__ = instance;
+  return o as any;
+  return o as any;
 }

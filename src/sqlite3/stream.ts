@@ -70,8 +70,10 @@ export abstract class SQLite3Stream<T = any> implements StreamPartial<T>, Select
   }
 
   protected async computeQuery(): Promise<{ cmdsApplied: number, select?: string, post?: string, limit?: number, kill?: boolean }> {
-    if(!this.query.length)
+    if(!this.query.length && !this.sel)
       return { cmdsApplied: 0, select: '*' };
+    if(!this.query.length)
+      return { cmdsApplied: 0, select: `[${this.sel}]` };
 
     const tableName = await resolveHValue(this.tableName);
     const primaryKey = await this.db.getPrimaryKey(tableName);

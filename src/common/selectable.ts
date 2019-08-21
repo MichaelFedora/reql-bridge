@@ -14,18 +14,13 @@ export interface SelectableStream<T = any> extends StreamPartial<T> {
 
 export function makeSelector<T = any>(partial: SelectableDatum<T>): Datum<T> {
   const datum: any = function<U extends string | number>(attribute: Value<U>) {
-    return makeSelector(partial._sel(attribute) as any);
+    return makeSelector(partial._sel(attribute));
+    /*const sel = partial._sel(attribute);
+    if(sel === partial)
+      return datum;
+    else return makeSelector(sel);*/
   };
   datum.__proto__ = partial;
 
   return datum;
-}
-
-export function makeStreamSelector<T = any>(partial: SelectableStream<T>): Stream<T> {
-  const stream: any = function<U extends string | number>(attribute: Value<U>) {
-    return makeSelector(partial._sel(attribute) as any);
-  };
-  stream.__proto__ = partial;
-
-  return stream;
 }

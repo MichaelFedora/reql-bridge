@@ -7,7 +7,7 @@ import {
 } from './index';
 import { Client } from 'pg';
 
-const level = 'trace';
+const level = 'debug';
 const layout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %m' };
 const errorLayout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %f:%l %m%n%s' };
 
@@ -79,7 +79,8 @@ async function test(create: () => Promise<Database>, log?: string) {
     logger.info('testTbl.pluck("key", "count").filter({ value: { type: bar } }): ',
       await testTbl.pluck('key', 'count').filter({ value: { type: 'bar' } }).run());
     logger.info('testTbl("key"): ', await testTbl('key').run());
-    logger.info(await testTbl('value')('type').filter(doc => doc.len().ge(4)).run());
+    logger.info('testTbl("value")("type").filter(doc => doc.len().ge(4)): ',
+      await testTbl('value')('type').filter(doc => doc.len().ge(4)).run());
     logger.info('testTbl.get("lime")("value")("type"): ', await testTbl.get('lime')('value')('type').run());
     logger.info('testTbl.filter(doc => doc("key").len().ge(4)): ', await testTbl.filter(doc => doc('key').len().ge(4)).run());
   } catch(e) {
@@ -105,7 +106,7 @@ const rootLog = getLogger('root');
 (async () => {
   for(const [create, log] of [
     [() => createPostgresDatabase({ client: new Client({ user: 'bobtest', password: 'keyboardcat', database: 'test' }) }), 'pg'],
-    // [createSQLite3Database, 'sqlite3'],
+    [createSQLite3Database, 'sqlite3'],
   ] as [() => Promise<Database>, string][]) {
     await test(create, log).catch(e => rootLog.error(e));
   }

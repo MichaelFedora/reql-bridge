@@ -46,17 +46,10 @@ export async function resolveQueryStatic<T = any>(
 
     switch(q.cmd) {
 
-      case 'map':
-        if(!(value instanceof Array))
-          throw new Error('Cannot map a non-array value: ' + JSON.stringify(value));
-        const newv = [];
-        for(const subv of value) {
-          newv.push(await resolveHValue((params[0] as (doc: Datum<typeof subv>) => Datum<any>)(expr(subv))));
-        }
-        value = newv;
-        break;
-
       case 'sel':
+        if(value instanceof Array)
+          value = value.map(a => a[params[0]]);
+        else
           value = value[params[0]];
         break;
 
@@ -120,18 +113,33 @@ export async function resolveQueryStatic<T = any>(
         break;
 
       case 'count':
+        if(!(value instanceof Array))
+          throw new Error('Cannot count a non-array value: ' + JSON.stringify(value));
+
         value = (value as any[]).length;
         break;
       case 'limit':
+        if(!(value instanceof Array))
+          throw new Error('Cannot limit a non-array value: ' + JSON.stringify(value));
+
         value = (value as any[]).slice(0, Number(params[0]));
         break;
       case 'difference':
+        if(!(value instanceof Array))
+          throw new Error('Cannot "difference" a non-array value: ' + JSON.stringify(value));
+
         value = (value as any[]).filter(a => !(params[0] as any[]).includes(a));
         break;
       case 'contains':
+        if(!(value instanceof Array))
+          throw new Error('Cannot "contains" a non-array value: ' + JSON.stringify(value));
+
         value = Boolean((value as any).find(a => a === (params[0])));
         break;
       case 'filter':
+        if(!(value instanceof Array))
+          throw new Error('Cannot filter a non-array value: ' + JSON.stringify(value));
+
         const pred: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>) = params[0];
 
         let predfoo: ((doc: Datum<T>) => Value<boolean>);
@@ -148,14 +156,21 @@ export async function resolveQueryStatic<T = any>(
         const newvalue = [];
         for(const item of value) {
           const newitem = { };
-          for(const field of params) {
-            newvalue[field] = value[field];
+          for(const key of params as string[]) if(item[key]) {
+            newitem[key] = value[key];
           }
+          newvalue.push(newitem);
         }
         value = newvalue;
       break;
       case 'map':
-        value = (value as any[]).map(a => params[0](expr(value)));
+        if(!(value instanceof Array))
+          throw new Error('Cannot map a non-array value: ' + JSON.stringify(value));
+        const newv = [];
+        for(const subv of value) {
+          newv.push(await resolveHValue((params[0] as (doc: Datum<typeof subv>) => Datum<any>)(expr(subv))));
+        }
+        value = newv;
         break;
 
       default:
