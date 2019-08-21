@@ -3,7 +3,7 @@
 *ReQL(-like) interpreter for a multitude of databases*
 
 ```typescript
-import { create as createReQLSQLite3DB } from 'reql-bridge/sqlite3';
+import { createSQLite3Database } from 'reql-bridge';
 
 const db = await create({ filename: ':memory:' });
 await db.tableCreate('my-table', [

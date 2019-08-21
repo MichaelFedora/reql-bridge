@@ -1,4 +1,49 @@
 
+# Docs
+
+### Initializing Databases
+
+Databases can be initialized by importing their factory function from the package.
+
+#### SQLite3
+
+```typescript
+import { createPostgreDatabase } from 'reql-bridge';
+
+const db = await createPostgreDatabase({
+  filename: ':memory:',
+  logger: 'app.sqlite3'
+});
+
+await db.createTable('my-table').run();
+```
+
+The config can contain a `logger` entry for whatever log4js category you want it to use,
+and an optional `filename` entry to pass a filename to create/use as the database
+(`:memory:` by default).
+
+#### PostgreSQL
+
+```typescript
+import { createPostgreDatabase } from 'reql-bridge';
+
+const db = await createPostgreDatabase({
+  username: 'my-username',
+  password: 'keyboardcat'
+});
+
+await db.createTable('my-table').run();
+```
+
+The config can contain a `logger` entry for whatever log4js category you want it to use,
+a `client` entry if you want to manually pass a `node-postgres` client to it, or any of
+the options for creating a Pool with `node-postgres`.
+
+### Manipulating Databases
+
+- close
+  - database.close() -> void
+
 ### Manipulating Tables
 
 - tableCreate
@@ -33,6 +78,7 @@
   - table.filter(predicate | object) -> selection
   - selection.filter(predicate | object) -> selection
   - stream.filter(predicate | object) -> stream
+  - array.filter(predicate | object) -> array
 
 ### Joins
 
@@ -44,10 +90,12 @@
   - table.map(predicate) -> stream
   - selection.map(predicate) -> stream
   - stream.map(predicate) -> stream
+  - array.map(predicate) -> array
 - limit
   - table.limit(n) -> stream
   - selection.limit(n) -> stream
   - stream.limit(n) -> stream
+  - array.limit(n) -> array
   
 ### Aggregation
 
@@ -55,20 +103,32 @@
   - table.count() -> number
   - selection.count() -> number
   - stream.count() -> number
+  - array.count() -> number
 - distinct
   - table.distinct() -> stream
   - selection.distinct() -> stream
   - stream.distinct() -> stream
+- contains
+  - table.contains(item) -> boolean
+  - selection.contains(item) -> boolean
+  - stream.contains(item) -> boolean
+  - array.contains(item) -> boolean
 
 ### Document Manipulation
 
-- table.pluck(...fields) -> stream
+- pluck
+  - table.pluck(...fields) -> stream
   - selection.pluck(...fields) -> stream
   - stream.pluck(...fields) -> stream
+  - array.pluck(...fields) -> array
+- difference
+  - array.difference(array) -> array
 - () (bracket)
+  - table(attribute) -> selection
+  - selection(attribute) -> selection
+  - stream(attribute) -> stream
   - singleSelection(attribute) -> value
   - datum(attribute) -> value
-  - *use `pluck` + `map` with tables/selections/streams*
 
 ### String manipulation
 
@@ -114,9 +174,15 @@
 - not
   - bool.not() -> bool
 
+### Dates and times
+
+Not supported - make them a number!
+
+### Control structures
+
+- expr(value) -> value
+
 ### The rest (unsupported)
 
-- Dates and times (*make them a number*)
-- Control structures
 - Geospatial commands
 - Administration
