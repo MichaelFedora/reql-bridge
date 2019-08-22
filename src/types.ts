@@ -216,6 +216,18 @@ export interface TablePartial<T = any> extends SelectionPartial<T> {
   // OPERATIONS
 
   insert(obj: T, options?: { conflict: 'error' | 'replace' | 'update' }): Datum<WriteResult<T>>;
+
+  indexCreate<U extends keyof T>(key: U): Datum<IndexChangeResult>;
+  indexCreate(key: any): Datum<IndexChangeResult>;
+  // indexCreate(name: Value<String>, indexFunction: (doc: Datum<T>) => Value<boolean>): Datum<IndexChangeResult>;
+
+  indexDrop<U extends keyof T>(key: U): Datum<IndexChangeResult>;
+  // indexDrop(name: Value<string>): Datum<IndexChangeResult>;
+  indexDrop(key: any): Datum<IndexChangeResult>;
+
+  indexList(): Datum<any[]>;
+
+  // indexRename(name: Value<string>, newName: Value<string>): Datum<IndexChangeResult>;
 }
 
 export interface Table<T = any> extends TablePartial<T>, Selection<T> {

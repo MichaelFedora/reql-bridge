@@ -31,8 +31,9 @@
     "@log4js-node/log4js-api": "^1.0.2"
   },
   "optionalDependencies": {
-    "sqlite3": "^4.0.9",
-    "pg": "^7.12.1"
+    "levelup": "^4.1.0",
+    "pg": "^7.12.1",
+    "sqlite3": "^4.0.9"
   },
   "devDependencies": {
     "@types/pg": "^7.11.0",
