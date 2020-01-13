@@ -4,14 +4,14 @@ import { SelectableDatum, makeSelector } from './selectable';
 import { AbstractDatumPartial } from './datum';
 import { QueryEntry } from './query-entry';
 
-class SQLite3StaticDatumPartial<T = any> extends AbstractDatumPartial<T> implements DatumPartial<T>, SelectableDatum<T> {
+class StaticDatum<T = any> extends AbstractDatumPartial<T> implements DatumPartial<T>, SelectableDatum<T> {
 
   constructor(private initialValue: Value<T>) {
     super();
   }
 
   _sel<U extends string | number>(attribute: Value<U>):
-    U extends keyof T ? SQLite3StaticDatumPartial<T[U]> : SQLite3StaticDatumPartial<any> {
+    U extends keyof T ? StaticDatum<T[U]> : StaticDatum<any> {
 
     this.query.push({ cmd: 'sel', params: [attribute] });
     return this as any;
@@ -208,11 +208,11 @@ export async function resolveQueryStatic<T = any>(
 }
 
 export function exprQuery<T = any>(initialValue: Value<T> | Value<T>, query: QueryEntry[]): Datum<T> {
-  const datum = makeSelector<T>(new SQLite3StaticDatumPartial<T>(initialValue)) as any;
+  const datum = makeSelector<T>(new StaticDatum<T>(initialValue)) as any;
   datum.query = query;
   return datum;
 }
 
 export function expr<T = any>(initialValue: Value<T> | Value<T>): Datum<T> {
-  return makeSelector<T>(new SQLite3StaticDatumPartial<T>(initialValue)) as any;
+  return makeSelector<T>(new StaticDatum<T>(initialValue)) as any;
 }

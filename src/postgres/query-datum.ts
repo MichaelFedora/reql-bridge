@@ -76,7 +76,7 @@ class PostgresQueryDatumPartial<T = any> extends AbstractDatumPartial<T> impleme
             if(query)
               query += ` AND `;
             if(sel2)
-              query += `${sel} NOT LIKE '%"${sel2}":${params[0]}%`;
+              query += `${sel} NOT LIKE '%"${sel2}":${params[0].replace(/^'|'$/g, '"')}%'`;
             else
               query += `${sel} != ${params[0]}`;
 
@@ -86,17 +86,17 @@ class PostgresQueryDatumPartial<T = any> extends AbstractDatumPartial<T> impleme
         case 'startsWith':
           if(sel2)
             throw new Error('Can only use "eq" and "ne" on sub-object!');
-          sel = `(${sel} LIKE ${'"%' + (params[0] as string).slice(1)})`;
+          sel = `(${sel} LIKE '%${(params[0] as string).slice(1, -1)})'`;
           break;
         case 'endsWith':
           if(sel2)
             throw new Error('Can only use "eq" and "ne" on sub-object!');
-          sel = `(${sel} LIKE ${(params[0] as string).slice(0, -1) + '%"'})`;
+          sel = `(${sel} LIKE '${(params[0] as string).slice(1, -1)})%')`;
           break;
-        case 'includes':
+        case 'substr':
           if(sel2)
             throw new Error('Can only use "eq" and "ne" on sub-object!');
-          sel = `(${sel} LIKE ${'"%' + (params[0] as string).slice(1, -1) + '%"'})`;
+          sel = `(${sel} LIKE '%${(params[0] as string).slice(1, -1)}%')`;
           break;
         case 'length':
           if(sel2)

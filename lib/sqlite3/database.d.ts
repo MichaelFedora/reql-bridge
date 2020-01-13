@@ -7,7 +7,7 @@ export declare class SQLite3Database implements Database {
         filename?: string;
         logger?: string;
     }): Promise<void>;
-    private readonly typemaps;
+    private get typemaps();
     readonly valueTypeMap: {
         string: string;
         bool: string;

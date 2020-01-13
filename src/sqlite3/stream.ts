@@ -106,7 +106,7 @@ export abstract class SQLite3Stream<T = any> implements StreamPartial<T>, Select
             if(!post)
               post = `[${primaryKey}] in (SELECT [${primaryKey}] FROM [${tableName}] WHERE ${query})`;
             else
-              post += ` AND (${query})`;
+              post = post.slice(0, -1) + ` AND (${query}))`;
 
           } else if(!res) {
             return { cmdsApplied: 0, kill: true };

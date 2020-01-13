@@ -93,7 +93,7 @@ class SQLite3QueryDatumPartial<T = any> extends AbstractDatumPartial<T> implemen
             throw new Error('Can only use "eq" and "ne" on sub-object!');
           sel = `(${sel} LIKE ${(params[0] as string).slice(0, -1) + '%"'})`;
           break;
-        case 'includes':
+        case 'substr':
           if(sel2)
             throw new Error('Can only use "eq" and "ne" on sub-object!');
           sel = `(${sel} LIKE ${'"%' + (params[0] as string).slice(1, -1) + '%"'})`;

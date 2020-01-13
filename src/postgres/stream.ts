@@ -73,7 +73,7 @@ export abstract class PostgresStream<T = any> implements StreamPartial<T>, Selec
     if(!this.query.length && !this.sel)
       return { cmdsApplied: 0, select: '*' };
     if(!this.query.length)
-      return { cmdsApplied: 0, select: `[${this.sel}]` };
+      return { cmdsApplied: 0, select: `${JSON.stringify(this.sel)}` };
 
     const tableName = await resolveValue(this.tableName);
     const primaryKey = await this.db.getPrimaryKey(tableName);
@@ -107,7 +107,7 @@ export abstract class PostgresStream<T = any> implements StreamPartial<T>, Selec
               post = `${JSON.stringify(primaryKey)} in (SELECT ${JSON.stringify(primaryKey)}`
                 + ` FROM ${JSON.stringify(tableName)} WHERE ${query})`;
             else
-              post += ` AND (${query})`;
+              post = post.slice(0, -1) + ` AND (${query}))`;
 
           } else if(!res) {
             return { cmdsApplied: 0, kill: true };

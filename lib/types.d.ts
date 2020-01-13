@@ -113,6 +113,11 @@ export interface TablePartial<T = any> extends SelectionPartial<T> {
     insert(obj: T, options?: {
         conflict: 'error' | 'replace' | 'update';
     }): Datum<WriteResult<T>>;
+    indexCreate<U extends keyof T>(key: U): Datum<IndexChangeResult>;
+    indexCreate(key: any): Datum<IndexChangeResult>;
+    indexDrop<U extends keyof T>(key: U): Datum<IndexChangeResult>;
+    indexDrop(key: any): Datum<IndexChangeResult>;
+    indexList(): Datum<any[]>;
 }
 export interface Table<T = any> extends TablePartial<T>, Selection<T> {
     fork(): never;

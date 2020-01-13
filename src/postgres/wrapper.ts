@@ -6,7 +6,7 @@ export interface WrappedPostgresDatabase {
   close(): Promise<void>;
   query<T = any>(query: string, values?: any[]): Promise<ActualQueryResult<T>>;
   get<T = any>(query: string, values?: any[]): Promise<T>;
-  all<T extends any[] = any[]>(query: string, values?: any[]): Promise<T>;
+  all<T extends any = any>(query: string, values?: any[]): Promise<T[]>;
   exec(query: string, values?: any[]): Promise<void>;
 
   // extensions
@@ -68,12 +68,12 @@ class PostgresDatabase implements WrappedPostgresDatabase {
     return this.client.query<T>(query, values).then(a => a.rows && a.rows.length ? a.rows[0]  : null);
   }
 
-  public all<T extends any[] = any[]>(query: string, values?: any[]): Promise<T> {
+  public all<T extends any = any>(query: string, values?: any[]): Promise<T[]> {
     this.logger.trace('All: ' + (values
       ? values.reduce((acc, v, i) => acc.replace('$' + i, String(v)), query)
       : query));
 
-    return this.client.query(query, values).then(a => a.rows as T);
+    return this.client.query(query, values).then(a => a.rows as T[]);
   }
 
   public exec(query: string, values?: any[]): Promise<void> {

@@ -3,7 +3,7 @@ export interface WrappedPostgresDatabase {
     close(): Promise<void>;
     query<T = any>(query: string, values?: any[]): Promise<ActualQueryResult<T>>;
     get<T = any>(query: string, values?: any[]): Promise<T>;
-    all<T extends any[] = any[]>(query: string, values?: any[]): Promise<T>;
+    all<T extends any = any>(query: string, values?: any[]): Promise<T[]>;
     exec(query: string, values?: any[]): Promise<void>;
     getPrimaryKey(tableName: string): Promise<string>;
     getKeys(tableName: string): Promise<{

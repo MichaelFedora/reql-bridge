@@ -1,7 +1,7 @@
 import {
   Table, TablePartial,
   Value, Datum, SchemaEntry, DeepPartial, WriteResult,
-  SingleSelection, Selection, Query, Stream
+  SingleSelection, Selection, Query, Stream, IndexChangeResult
 } from '../types';
 import { createQuery, resolveValue, coerceCorrectReturn } from '../common/util';
 import { WrappedSQLite3Database } from './wrapper';
@@ -128,6 +128,37 @@ export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements Ta
         () => ({ deleted: 0, skipped: 0, errors: 0, inserted: 1, replaced: 0, unchanged: 0 }),
         e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
       return ret;
+    }));
+  }
+
+  indexCreate<U extends keyof T>(key: U): Datum<IndexChangeResult>;
+  indexCreate(key: any): Datum<IndexChangeResult>;
+  // indexCreate(name: Value<String>, indexFunction: (doc: Datum<T>) => Value<boolean>): Datum<IndexChangeResult>;
+  indexCreate(key: any): Datum<IndexChangeResult> {
+    return expr(createQuery(async () => {
+      const tableName = await resolveValue(this.tableName);
+      await this.db.exec(`CREATE INDEX ${JSON.stringify(tableName + '_' + key)} ON ${JSON.stringify(tableName)}(${JSON.stringify(key)})`);
+      return { created: 1 } as IndexChangeResult;
+    }));
+  }
+
+  indexDrop<U extends keyof T>(key: U): Datum<IndexChangeResult>;
+  // indexDrop(name: Value<string>): Datum<IndexChangeResult>;
+  indexDrop(key: any): Datum<IndexChangeResult>;
+  indexDrop(key: any): Datum<IndexChangeResult> {
+    return expr(createQuery(async () => {
+      const tableName = await resolveValue(this.tableName);
+      await this.db.exec(`DROP INDEX ${JSON.stringify(tableName + '_' + key)}`);
+      return { dropped: 1 } as IndexChangeResult;
+    }));
+  }
+
+  indexList(): Datum<any[]> {
+    return expr(createQuery(async () => {
+      const tableName = await resolveValue(this.tableName);
+      const rows = await this.db.all<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type="index" AND tbl_name=${JSON.stringify(tableName)}`);
+      return rows.map(row => row.name.startsWith(tableName) ? row.name.slice(tableName.length + 1) : row.name);
     }));
   }
 

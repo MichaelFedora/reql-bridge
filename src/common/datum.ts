@@ -62,7 +62,7 @@ export abstract class AbstractDatumPartial<T = any> implements DatumPartial<T> {
     return this as any;
   }
   substr(str: Value<string>): T extends string ? Datum<boolean> : never {
-    this.query.push({ cmd: 'includes', params: [str] });
+    this.query.push({ cmd: 'substr', params: [str] });
     return this as any;
   }
   len(): T extends string ? Datum<number> : never {

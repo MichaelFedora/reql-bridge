@@ -29,6 +29,7 @@ async function test(create: () => Promise<Database>, log?: string) {
 
   const db = await create();
   const console = { log: (a, ...b) => logger.info(a, ...b) };
+  let errored = false;
 
   // begin sample
   try {
@@ -85,8 +86,15 @@ async function test(create: () => Promise<Database>, log?: string) {
     logger.info('testTbl.filter(doc => doc("key").len().ge(4)): ', await testTbl.filter(doc => doc('key').len().ge(4)).run());
     logger.info('testTbl.get("foo")("count").do(v => v.add(1)).gt(4).branch("yes", () => "no"))',
       await testTbl.get('foo')('count').do(v => v.add(1)).gt(4).branch<string>('yes', () => 'no').run());
+
+    logger.info('testTbl.indexList(): ', await testTbl.indexList().run());
+    logger.info('testTbl.indexCreate("value"): ', await testTbl.indexCreate('value').run());
+    logger.info('testTbl.indexList(): ', await testTbl.indexList().run());
+    logger.info('testTbl.indexDrop("value"): ', await testTbl.indexDrop('value').run());
+    logger.info('testTbl.indexList(): ', await testTbl.indexList().run());
   } catch(e) {
     logger.error(e);
+    errored = true;
   }
 
   // cleanup!
@@ -100,18 +108,23 @@ async function test(create: () => Promise<Database>, log?: string) {
   if(list.includes('__reql_typemap__'))
     await db.tableDrop('__reql_typemap__').run().catch(e => logger.error(e));
 
-  return db.close();
+  await db.close();
+  return errored;
 }
 
 const rootLog = getLogger('root');
 
 (async () => {
+  const errored = [];
   for(const [create, log] of [
     [() => createPostgresDatabase({ client: new Client({ user: 'bobtest', password: 'keyboardcat', database: 'test' }) }), 'pg'],
     [createSQLite3Database, 'sqlite3'],
   ] as [() => Promise<Database>, string][]) {
-    await test(create, log).catch(e => rootLog.error(e));
+    if(await test(create, log).catch(e => { rootLog.error(e); return true; }))
+      errored.push(log);
   }
+  for(const db of errored)
+    rootLog.error(db + ' test failed!');
 })().then(() => {
   process.exit(0);
 }).catch(e => {

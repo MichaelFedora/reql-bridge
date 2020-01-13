@@ -2,6 +2,12 @@
 
 - Added `branch` and `do` to Static Datums (`expr`)
 - Fixed `add` and `sub` actually being exponential in static datums
+- Fix postgres implementation so it actually works... whoops!
+- Add indexCreate, indexList, and indexDrop to the Table object
+- Update deps to latest
+- Cleaned up some SQL Queries for Streams
+- Cleaned up the Static Datum definition
+- Catch null values when resolving them
 
 # v2.0
 

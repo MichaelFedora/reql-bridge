@@ -8,7 +8,7 @@ export declare class PostgresDatabase implements Database {
         logger?: string;
         client?: Client;
     } & PoolConfig): Promise<void>;
-    private readonly typemaps;
+    private get typemaps();
     readonly valueTypeMap: {
         string: string;
         bool: string;

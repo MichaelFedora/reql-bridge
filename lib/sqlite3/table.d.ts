@@ -1,9 +1,9 @@
-import { Table, TablePartial, Value, Datum, SchemaEntry, DeepPartial, WriteResult, SingleSelection, Selection } from '../types';
+import { Table, TablePartial, Value, Datum, SchemaEntry, DeepPartial, WriteResult, SingleSelection, Selection, IndexChangeResult } from '../types';
 import { WrappedSQLite3Database } from './wrapper';
 import { SQLite3Stream } from './stream';
 export declare class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements TablePartial<T> {
     private types;
-    private readonly primaryIndexGetter;
+    private get primaryIndexGetter();
     constructor(db: WrappedSQLite3Database, tableName: Value<string>, types: Value<SchemaEntry[]>);
     filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Selection<T>;
     fork(): never;
@@ -22,6 +22,11 @@ export declare class SQLite3TablePartial<T = any> extends SQLite3Stream<T> imple
     insert(obj: T, options?: {
         conflict: 'error' | 'replace' | 'update';
     }): Datum<WriteResult<T>>;
+    indexCreate<U extends keyof T>(key: U): Datum<IndexChangeResult>;
+    indexCreate(key: any): Datum<IndexChangeResult>;
+    indexDrop<U extends keyof T>(key: U): Datum<IndexChangeResult>;
+    indexDrop(key: any): Datum<IndexChangeResult>;
+    indexList(): Datum<any[]>;
     run(): Promise<T[]>;
 }
 interface SQLite3Table<T = any> extends SQLite3TablePartial<T>, Table<T> {

@@ -33,7 +33,7 @@ export class PostgresDatabase implements Database {
 
   readonly valueTypeMap = {
     string: 'text',
-    bool: 'numeric', // yep
+    bool: 'boolean',
     number: 'numeric',
     object: 'text', // yeeep
   };
@@ -83,7 +83,7 @@ export class PostgresDatabase implements Database {
     return expr(createQuery(async () => {
       const result = await this.db.all<{
         name: string
-      }[]>(`SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public'`);
+      }>(`SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public'`);
       return result.map(a => a.name);
     }));
   }
