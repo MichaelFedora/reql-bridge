@@ -23,7 +23,7 @@ console.log(await table.getAll('yeet', 'bar').map(doc => doc('value')).run()); /
 [![patreon](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://patreon.com/michaelfedora)
 [![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/michaelfedora)
 
-For those who don't now, ReQL is the official query language of [RethinkDB](https://rethinkdb.com/api/javascript/).
+For those who don't know, ReQL is the official query language of [RethinkDB](https://rethinkdb.com/api/javascript/).
 I wanted to use it with other databases, and so I made this so I could use SQLite without wanting to die inside;
 but also because I wanted to pass objects to plugins in a way that was more flexible then a simple key-value
 store.
