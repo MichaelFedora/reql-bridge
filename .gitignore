@@ -1,6 +1,6 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files.
 
-# compiled output\
+# compiled output
 /dist
 /tmp
 /stage
@@ -9,6 +9,7 @@
 
 notepad.md
 /secret
+/test-db
 
 # dependencies
 /node_modules

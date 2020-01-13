@@ -3,9 +3,11 @@ import { getLogger, configure, shutdown } from 'log4js';
 import {
   createSQLite3Database,
   createPostgresDatabase,
+  createLevelDatabase,
   Database
 } from './index';
 import { Client } from 'pg';
+import leveldown from 'leveldown';
 
 const level = 'debug';
 const layout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %m' };
@@ -117,8 +119,9 @@ const rootLog = getLogger('root');
 (async () => {
   const errored = [];
   for(const [create, log] of [
-    [() => createPostgresDatabase({ client: new Client({ user: 'bobtest', password: 'keyboardcat', database: 'test' }) }), 'pg'],
     [createSQLite3Database, 'sqlite3'],
+    [() => createPostgresDatabase({ client: new Client({ user: 'bobtest', password: 'keyboardcat', database: 'test' }) }), 'pg'],
+    [() => createLevelDatabase({ store: leveldown('./test-db/level') })]
   ] as [() => Promise<Database>, string][]) {
     if(await test(create, log).catch(e => { rootLog.error(e); return true; }))
       errored.push(log);
