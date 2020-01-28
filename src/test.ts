@@ -56,9 +56,9 @@ async function test(create: () => Promise<Database>, log?: string) {
     // end sample
 
     const res = await db.tableCreate('test-table', [
-      { name: 'key', type: 'string' },
+      { name: 'key', type: 'string', index: true },
       { name: 'value', type: 'object' },
-      { name: 'count', type: 'number' },
+      { name: 'count', type: 'number', index: true },
       { name: 'sale', type: 'bool' }
     ])('tables_created').gt(0).run();
     logger.info('res: ', res);
@@ -73,8 +73,12 @@ async function test(create: () => Promise<Database>, log?: string) {
     logger.info('testTbl: ', await testTbl.run());
     logger.info('testTbl.get("foo"): ', await testTbl.get('foo').run());
     logger.info('testTbl.getAll({ type: "bar" }, { index: "value" }): ', await testTbl.getAll({ type: 'bar' }, { index: 'value' }).run());
-    logger.info('testTbl.insert(update): ',
+    logger.info('testTbl.getAll("foo", { index: "key" }): ', await testTbl.getAll('foo', { index: 'key' }).run());
+    logger.info('testTbl.getAll(2, { index: "count" }): ', await testTbl.getAll(2, { index: 'count' }).run());
+    logger.info('testTbl.insert(update)({ key: "lime", value: { type: "bar" } }): ',
       await testTbl.insert({ key: 'lime', value: { type: 'bar' } } as any, { conflict: 'update' }).run());
+    logger.info('testTbl.get("foo").update({ key: "foo", count: 5 }): ',
+      await testTbl.get('foo').update({ key: 'foo', count: 5 }).run());
     logger.info('testTbl: ', await testTbl.run());
     logger.info('testTbl.limit(2): ', await testTbl.limit(2).run());
     logger.info('testTbl.pluck("key", "count").filter({ value: { type: bar } }): ',

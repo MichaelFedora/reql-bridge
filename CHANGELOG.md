@@ -1,6 +1,7 @@
 # v2.1.1
 
 - Fixed `difference` types
+- Fixed `update()` not actually working (whoops)
 
 # v2.1
 
