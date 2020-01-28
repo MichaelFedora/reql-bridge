@@ -8,7 +8,7 @@ class PostgresQueryDatumPartial<T = any> extends AbstractDatumPartial<T> impleme
   constructor() { super(); }
 
   _sel<U extends string | number>(attribute: Value<U>):
-    U extends keyof T ? PostgresQueryDatumPartial<T[U]> : PostgresQueryDatumPartial<any> {
+  U extends keyof T ? PostgresQueryDatumPartial<T[U]> : PostgresQueryDatumPartial<any> {
 
     this.query.push({ cmd: 'sel', params: [attribute] });
     return this as any;
@@ -62,7 +62,7 @@ class PostgresQueryDatumPartial<T = any> extends AbstractDatumPartial<T> impleme
           if(!sel)
             throw new Error('Cannot start a filter with "eq"!');
           if(query)
-            query += ` AND `;
+            query += ' AND ';
           if(sel2)
             query += `${sel} LIKE '%"${sel2}":${params[0].replace(/^'|'$/g, '"')}%'`;
           else
@@ -71,16 +71,16 @@ class PostgresQueryDatumPartial<T = any> extends AbstractDatumPartial<T> impleme
           sel = sel2 = '';
           break;
         case 'ne':
-            if(!sel)
-              throw new Error('Cannot start a filter with "ne"!');
-            if(query)
-              query += ` AND `;
-            if(sel2)
-              query += `${sel} NOT LIKE '%"${sel2}":${params[0].replace(/^'|'$/g, '"')}%'`;
-            else
-              query += `${sel} != ${params[0]}`;
+          if(!sel)
+            throw new Error('Cannot start a filter with "ne"!');
+          if(query)
+            query += ' AND ';
+          if(sel2)
+            query += `${sel} NOT LIKE '%"${sel2}":${params[0].replace(/^'|'$/g, '"')}%'`;
+          else
+            query += `${sel} != ${params[0]}`;
 
-            sel = sel2 = '';
+          sel = sel2 = '';
           break;
 
         case 'startsWith':
@@ -149,14 +149,14 @@ class PostgresQueryDatumPartial<T = any> extends AbstractDatumPartial<T> impleme
           else
             throw new Error('Cannot use "div" without something selected!');
           break;
-          case 'div':
-            if(sel2)
-              throw new Error('Can only use "eq" and "ne" on sub-object!');
-            else if(sel)
-              sel = `(${sel} % ${params[0]})`;
-            else
-              throw new Error('Cannot use "mod" without something selected!');
-            break;
+        case 'div':
+          if(sel2)
+            throw new Error('Can only use "eq" and "ne" on sub-object!');
+          else if(sel)
+            sel = `(${sel} % ${params[0]})`;
+          else
+            throw new Error('Cannot use "mod" without something selected!');
+          break;
 
         case 'gt':
           if(sel2)

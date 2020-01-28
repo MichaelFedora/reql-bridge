@@ -1,3 +1,7 @@
+# v2.1.1
+
+- Fixed `difference` types
+
 # v2.1
 
 - Added `branch` and `do` to Static Datums (`expr`)

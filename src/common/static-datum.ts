@@ -11,7 +11,7 @@ class StaticDatum<T = any> extends AbstractDatumPartial<T> implements DatumParti
   }
 
   _sel<U extends string | number>(attribute: Value<U>):
-    U extends keyof T ? StaticDatum<T[U]> : StaticDatum<any> {
+  U extends keyof T ? StaticDatum<T[U]> : StaticDatum<any> {
 
     this.query.push({ cmd: 'sel', params: [attribute] });
     return this as any;
@@ -54,10 +54,10 @@ export async function resolveQueryStatic<T = any>(
         break;
 
       case 'eq':
-          value = !params.find(a => a !== value);
+        value = !params.find(a => a !== value);
         break;
       case 'ne':
-          value = Boolean(params.find(a => a !== value));
+        value = Boolean(params.find(a => a !== value));
         break;
 
       case 'or':
@@ -79,7 +79,7 @@ export async function resolveQueryStatic<T = any>(
               if(typeof params[i] === 'function')
                 retValue = await resolveValue(params[i](expr(value)));
               else
-               retValue = params[i];
+                retValue = params[i];
               break;
             }
           } else if(i === params.length - 1) { // false action
@@ -189,7 +189,7 @@ export async function resolveQueryStatic<T = any>(
           newvalue.push(newitem);
         }
         value = newvalue;
-      break;
+        break;
       case 'map':
         if(!(value instanceof Array))
           throw new Error('Cannot map a non-array value: ' + JSON.stringify(value));

@@ -46,7 +46,7 @@ export class SQLite3SelectionPartial<T = any> extends SQLite3Stream<T> implement
 
         const poost = (post ? ' AND ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
         return this.db.get<{
-          'COUNT(*)': number
+          'COUNT(*)': number;
         }>(`SELECT COUNT(*) FROM [${tableName}] WHERE ${selection}${poost}`)
           .then(a => limit ? Math.min(a['COUNT(*)'], limit) : a['COUNT(*)']);
       }

@@ -26,7 +26,7 @@ export declare class PostgresTablePartial<T = any> extends PostgresStream<T> imp
     indexCreate(key: any): Datum<IndexChangeResult>;
     indexDrop<U extends keyof T>(key: U): Datum<IndexChangeResult>;
     indexDrop(key: any): Datum<IndexChangeResult>;
-    indexList(): Datum<any[]>;
+    indexList(): Datum<string[]>;
     run(): Promise<T[]>;
 }
 interface PostgresTable<T = any> extends PostgresTablePartial<T>, Table<T> {

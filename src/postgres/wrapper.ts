@@ -11,7 +11,7 @@ export interface WrappedPostgresDatabase {
 
   // extensions
   getPrimaryKey(tableName: string): Promise<string>;
-  getKeys(tableName: string): Promise<{ name: string, primary?: boolean }[]>;
+  getKeys(tableName: string): Promise<{ name: string; primary?: boolean }[]>;
 }
 
 interface ActualQueryResult<T = any> extends QueryResultBase {
@@ -34,7 +34,7 @@ class PostgresDatabase implements WrappedPostgresDatabase {
   public get client(): PoolOrClient { return this._client || this.pool; }
   private logger: Logger;
 
-  constructor(options?: { client?: Client, logger?: string } & PoolConfig) {
+  constructor(options?: { client?: Client; logger?: string } & PoolConfig) {
     options = Object.assign({ logger: 'pg' }, options);
     if(options.client)
       this._client = options.client;
@@ -99,16 +99,16 @@ class PostgresDatabase implements WrappedPostgresDatabase {
     AND    i.indisprimary;`).then(a => a.rows && a.rows.length && a.rows[0].name);
   }
 
-  public async getKeys(tableName: string): Promise<{ name: string, primary?: boolean }[]> {
+  public async getKeys(tableName: string): Promise<{ name: string; primary?: boolean }[]> {
     const columns = await this.query<{ name: string }>
-      (`SELECT column_name AS name FROM information_schema.columns WHERE table_name=${safen(tableName)};`)
+    (`SELECT column_name AS name FROM information_schema.columns WHERE table_name=${safen(tableName)};`)
       .then(a => a.rows);
     const primaryKey = await this.getPrimaryKey(tableName);
     return columns.map(a => { return primaryKey === a.name ? { name: a.name, primary: true } : a; });
   }
 }
 
-export async function create(options?: { logger?: string, client?: Client } & PoolConfig): Promise<WrappedPostgresDatabase> {
+export async function create(options?: { logger?: string; client?: Client } & PoolConfig): Promise<WrappedPostgresDatabase> {
   const db = new PostgresDatabase(options);
   await db.init();
   return db;

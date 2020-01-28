@@ -25,7 +25,7 @@ export declare abstract class AbstractDatumPartial<T = any> implements DatumPart
     ge(...values: Value<number>[]): T extends number ? Datum<boolean> : never;
     le(...values: Value<number>[]): T extends number ? Datum<boolean> : never;
     count(): T extends any[] ? Datum<number> : never;
-    difference(value: Value<T>): T extends any[] ? Datum<boolean> : never;
+    difference(value: Value<T>): T extends any[] ? Datum<T> : never;
     contains<U = any>(value: Value<U>): T extends U[] ? Datum<boolean> : never;
     filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): T extends any[] ? Datum<T> : never;
     limit(n: Value<number>): T extends any[] ? Datum<T> : never;

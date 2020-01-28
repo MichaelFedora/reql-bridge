@@ -57,7 +57,7 @@ export interface DatumPartial<T = any> extends Query<T> {
     le(...values: Value<number>[]): T extends number ? Datum<boolean> : never;
     count(): T extends any[] ? Datum<number> : never;
     limit(n: Value<number>): T extends any[] ? Datum<T> : never;
-    difference(value: Value<T>): T extends any[] ? Datum<boolean> : never;
+    difference(value: Value<T>): T extends any[] ? Datum<T> : never;
     contains<U>(value: Value<U>): T extends U[] ? Datum<boolean> : never;
     filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): T extends any[] ? Datum<T> : never;
     pluck<U extends object>(...fields: string[]): T extends U[] ? Datum<Partial<U>[]> : never;
@@ -117,7 +117,7 @@ export interface TablePartial<T = any> extends SelectionPartial<T> {
     indexCreate(key: any): Datum<IndexChangeResult>;
     indexDrop<U extends keyof T>(key: U): Datum<IndexChangeResult>;
     indexDrop(key: any): Datum<IndexChangeResult>;
-    indexList(): Datum<any[]>;
+    indexList(): Datum<string[]>;
 }
 export interface Table<T = any> extends TablePartial<T>, Selection<T> {
     fork(): never;

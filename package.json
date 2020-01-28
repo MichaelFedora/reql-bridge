@@ -1,12 +1,13 @@
 {
   "name": "reql-bridge",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "ReQL(-like) interpreter for a multitude of databases",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
     "test": "del-cli lib && tsc && node lib/test.js",
-    "build": "del-cli lib && tsc"
+    "build": "del-cli lib && tsc",
+    "lint": "eslint . --ext .ts"
   },
   "repository": {
     "type": "git",
@@ -38,10 +39,14 @@
   "devDependencies": {
     "@types/pg": "^7.14.1",
     "@types/sqlite3": "^3.1.6",
+    "@typescript-eslint/eslint-plugin": "^2.18.0",
+    "@typescript-eslint/eslint-plugin-tslint": "^2.18.0",
+    "@typescript-eslint/parser": "^2.18.0",
     "del-cli": "^3.0.0",
+    "eslint": "^6.8.0",
     "log4js": "^6.1.0",
     "source-map-support": "^0.5.16",
     "tslint": "^5.20.1",
-    "typescript": "^3.7.4"
+    "typescript": "^3.7.5"
   }
 }

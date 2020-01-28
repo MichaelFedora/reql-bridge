@@ -15,7 +15,7 @@ export class SQLite3Database implements Database {
 
   private readonly typemapsTableName = '__reql_typemap__';
 
-  async init(options?: { filename?: string, logger?: string }) {
+  async init(options?: { filename?: string; logger?: string }) {
     options = Object.assign({ logger: 'sqlite3' }, options);
     this.db = await createSQLite3DB(Object.assign(options, { logger: options.logger + '.raw' }));
 
@@ -26,7 +26,7 @@ export class SQLite3Database implements Database {
   }
 
   private get typemaps() {
-    return this.table<{ table: string, types: string }>(this.typemapsTableName);
+    return this.table<{ table: string; types: string }>(this.typemapsTableName);
   }
 
   readonly valueTypeMap = {
@@ -57,7 +57,7 @@ export class SQLite3Database implements Database {
 
     return expr(createQuery(async () => {
       if(typeof tableName !== 'string')
-          tableName = await tableName.run();
+        tableName = await tableName.run();
       await this.db.exec(`CREATE TABLE IF NOT EXISTS [${tableName}] (${keys})`);
       await this.typemaps.insert({ table: tableName, types: JSON.stringify(schema) }, { conflict: 'replace' }).run();
       for(const index of indexes)
@@ -70,7 +70,7 @@ export class SQLite3Database implements Database {
   tableDrop(tableName: Value<string>): Datum<TableChangeResult> {
     return expr(createQuery(async () => {
       if(typeof tableName !== 'string')
-          tableName = await tableName.run();
+        tableName = await tableName.run();
       await this.db.exec(`DROP TABLE IF EXISTS [${tableName}]`);
       return { tables_dropped: 1 } as TableChangeResult;
     }));
@@ -78,16 +78,16 @@ export class SQLite3Database implements Database {
 
   tableList(): Datum<string[]> {
     return expr(createQuery(async () => {
-      const result = await this.db.all<{ name: string }>(`SELECT name FROM sqlite_master WHERE type='table'`);
+      const result = await this.db.all<{ name: string }>('SELECT name FROM sqlite_master WHERE type=\'table\'');
       return result.map(a => a.name);
     }));
   }
 
   table<T = any>(tableName: Value<string>): Table<T> {
     return createTable<T>(this.db, tableName, createQuery(async () =>
-        tableName !== this.typemapsTableName
-          ? await this.typemaps.get(tableName)('types').run().then(a => JSON.parse(a))
-          : this.typemapsType));
+      tableName !== this.typemapsTableName
+        ? await this.typemaps.get(tableName)('types').run().then(a => JSON.parse(a))
+        : this.typemapsType));
   }
 
   async close() {
@@ -95,7 +95,7 @@ export class SQLite3Database implements Database {
   }
 }
 
-export async function create(options?: { filename?: string, logger?: string }): Promise<Database> {
+export async function create(options?: { filename?: string; logger?: string }): Promise<Database> {
   const db = new SQLite3Database();
   await db.init(options);
   return db;

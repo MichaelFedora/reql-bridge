@@ -69,7 +69,7 @@ export abstract class PostgresStream<T = any> implements StreamPartial<T>, Selec
     return this as any;
   }
 
-  protected async computeQuery(): Promise<{ cmdsApplied: number, select?: string, post?: string, limit?: number, kill?: boolean }> {
+  protected async computeQuery(): Promise<{ cmdsApplied: number; select?: string; post?: string; limit?: number; kill?: boolean }> {
     if(!this.query.length && !this.sel)
       return { cmdsApplied: 0, select: '*' };
     if(!this.query.length)

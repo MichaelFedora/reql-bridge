@@ -38,7 +38,7 @@ async function test(create: () => Promise<Database>, log?: string) {
       { name: 'key', type: 'string' },
       { name: 'value', type: 'any' }
     ]).run();
-    const table = db.table<{ key: string, value: any }>('my-table');
+    const table = db.table<{ key: string; value: any }>('my-table');
     await table.insert({ key: 'fooo', value: 'apple' }).run();
     await table.insert({ key: 'bar', value: 2 }).run();
     await table.insert({ key: 'yeet', value: { super: false } }).run();
@@ -66,7 +66,7 @@ async function test(create: () => Promise<Database>, log?: string) {
     logger.debug('types db: ', await db.table<{ types: string }>('__reql_typemap__').pluck('types').run().then(a => {
       return a.map(b => JSON.parse(b.types));
     }));
-    const testTbl = db.table<{ key: string; value: { type: string }; count: number; sale: boolean; }>('test-table');
+    const testTbl = db.table<{ key: string; value: { type: string }; count: number; sale: boolean }>('test-table');
     logger.info('testTbl insert: ', await testTbl.insert({ key: 'foo', value: { type: 'bar' }, count: 3, sale: false }).run());
     logger.info('testTbl insert: ', await testTbl.insert({ key: 'lime', value: { type: 'juice' }, count: 0, sale: true }).run());
     logger.info('testTbl insert: ', await testTbl.insert({ key: 'orange', value: { type: 'syrup' }, count: 1, sale: false }).run());

@@ -52,6 +52,12 @@ the options for creating a Pool with `node-postgres`.
   - database.tableDrop(tableName) -> void
 - tableList
   - database.tableList() -> string[]
+- indexCreate
+  - table.indexCreate(indexName) -> changes
+- indexDrop
+  - table.indexDrop(indexName) -> changes
+- indexList
+  - table.indexList() -> string[]
 
 ### Writing Data
 
@@ -180,6 +186,10 @@ Not supported - make them a number!
 
 ### Control structures
 
+- do
+  - any.do(func) -> any
+- branch
+  - any.branch(true_action[, test_actions...], false_action) -> any
 - expr(value) -> value
 
 ### The rest (unsupported)

@@ -150,7 +150,7 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
     }));
   }
 
-  indexList(): Datum<any[]> {
+  indexList(): Datum<string[]> {
     return expr(createQuery(async () => {
       const tableName = await resolveValue(this.tableName);
       const rows = await this.db.all<{ indexname: string }>(

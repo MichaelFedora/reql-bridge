@@ -1,12 +1,12 @@
 export type DeepPartial<T> =
   | T
   | {
-      [P in keyof T]?: T[P] extends Array<infer U1>
-        ? Array<DeepPartial<U1>>
-        : T[P] extends readonly (infer U2)[]
+    [P in keyof T]?: T[P] extends Array<infer U1>
+      ? Array<DeepPartial<U1>>
+      : T[P] extends readonly (infer U2)[]
         ? readonly DeepPartial<U2>[]
         : DeepPartial<T[P]>
-};
+  };
 
 export interface ValueChange<T = any> {
   old_val?: T;
@@ -70,8 +70,8 @@ export interface DatumPartial<T = any> extends Query<T>  {
   do<U = any>(func: (value: Datum<T>) => Value<U>): Datum<U>;
   branch<U = any, V = any>(trueAction: Value<U> | (() => Value<U>), falseAction: Value<V> | (() => Value<V>)): Datum<U | V>;
   branch<U = any, V = any, W = any>(trueAction: Value<U> | (() => Value<U>),
-      test2: Value<any>, test2Action: Value<V> | (() => Value<V>),
-      falseAction: Value<W> | (() => Value<W>)): Datum<U | V | W>;
+    test2: Value<any>, test2Action: Value<V> | (() => Value<V>),
+    falseAction: Value<W> | (() => Value<W>)): Datum<U | V | W>;
   branch<U = any>(trueAction: Value<any> | (() => Value<any>),
     ...testsActionsAndFalseAction: (Value<any> | (() => Value<any>))[]): Datum<U>;
 
@@ -102,7 +102,7 @@ export interface DatumPartial<T = any> extends Query<T>  {
   count(): T extends any[] ? Datum<number> : never;
   limit(n: Value<number>): T extends any[] ? Datum<T> : never;
 
-  difference(value: Value<T>): T extends any[] ? Datum<boolean> : never;
+  difference(value: Value<T>): T extends any[] ? Datum<T> : never;
   contains<U>(value: Value<U>): T extends U[] ? Datum<boolean> : never;
 
   filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): T extends any[] ? Datum<T> : never;
@@ -225,7 +225,7 @@ export interface TablePartial<T = any> extends SelectionPartial<T> {
   // indexDrop(name: Value<string>): Datum<IndexChangeResult>;
   indexDrop(key: any): Datum<IndexChangeResult>;
 
-  indexList(): Datum<any[]>;
+  indexList(): Datum<string[]>;
 
   // indexRename(name: Value<string>, newName: Value<string>): Datum<IndexChangeResult>;
 }
