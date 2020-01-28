@@ -72,6 +72,7 @@ async function test(create: () => Promise<Database>, log?: string) {
     logger.info('testTbl insert: ', await testTbl.insert({ key: 'orange', value: { type: 'syrup' }, count: 1, sale: false }).run());
     logger.info('testTbl: ', await testTbl.run());
     logger.info('testTbl.get("foo"): ', await testTbl.get('foo').run());
+    logger.info('testTbl.get("fee"): ', await testTbl.get('fee').run());
     logger.info('testTbl.getAll({ type: "bar" }, { index: "value" }): ', await testTbl.getAll({ type: 'bar' }, { index: 'value' }).run());
     logger.info('testTbl.getAll("foo", { index: "key" }): ', await testTbl.getAll('foo', { index: 'key' }).run());
     logger.info('testTbl.getAll(2, { index: "count" }): ', await testTbl.getAll(2, { index: 'count' }).run());

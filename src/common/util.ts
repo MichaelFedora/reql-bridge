@@ -29,6 +29,8 @@ export function deepPartialToPredicate<T = any>(obj: DeepPartial<T>): (doc: Datu
 }
 
 export function coerceCorrectReturn<T = any>(obj: any, types: SchemaEntry[]): T {
+  if(!obj)
+    return null;
   const boop: any = { }; // make boop[key] null or skip?
   for(const key in obj) if(obj[key] == null) { boop[key] = null; } else {
     const entry = types.find(a => a.name === key);

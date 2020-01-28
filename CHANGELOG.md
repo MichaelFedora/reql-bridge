@@ -2,6 +2,7 @@
 
 - Fixed `difference` types
 - Fixed `update()` not actually working (whoops)
+- Fixex, when getting null, returning a blank object (which isn't null)
 
 # v2.1
 
