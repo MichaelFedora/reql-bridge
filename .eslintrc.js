@@ -9,8 +9,7 @@ module.exports = {
         "sourceType": "module"
     },
     "plugins": [
-        "@typescript-eslint",
-        "@typescript-eslint/tslint"
+        "@typescript-eslint"
     ],
     "rules": {
         "@typescript-eslint/class-name-casing": "error",
@@ -114,28 +113,27 @@ module.exports = {
         "prefer-const": "error",
         "radix": "off",
         "spaced-comment": "error",
-        "@typescript-eslint/tslint/config": [
-            "error",
-            {
-                "rules": {
-                    "import-spacing": true,
-                    "one-line": [
-                        true,
-                        "check-open-brace",
-                        "check-catch",
-                        "check-else",
-                        "check-whitespace"
-                    ],
-                    "whitespace": [
-                        true,
-                        "_check-branch",
-                        "check-decl",
-                        "check-operator",
-                        "check-separator",
-                        "check-type"
-                    ]
-                }
-            }
-        ]
     }
 };
+
+
+/* "use prettier"
+  "rules": {
+      "import-spacing": true,
+      "one-line": [
+          true,
+          "check-open-brace",
+          "check-catch",
+          "check-else",
+          "check-whitespace"
+      ],
+      "whitespace": [
+          true,
+          "_check-branch",
+          "check-decl",
+          "check-operator",
+          "check-separator",
+          "check-type"
+      ]
+  }
+*/
