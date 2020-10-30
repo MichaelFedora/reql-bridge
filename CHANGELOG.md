@@ -1,6 +1,6 @@
 # v2.1.2 (in progress)
 
-- Fixed 'mod' not working on postgres query-datum
+- Fixed 'mod' not working on any query-datum
 
 # v2.1.1
 
