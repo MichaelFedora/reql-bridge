@@ -149,7 +149,7 @@ class SQLite3QueryDatumPartial<T = any> extends AbstractDatumPartial<T> implemen
           else
             throw new Error('Cannot use "div" without something selected!');
           break;
-        case 'div':
+        case 'mod':
           if(sel2)
             throw new Error('Can only use "eq" and "ne" on sub-object!');
           else if(sel)

@@ -1,8 +1,12 @@
+# v2.1.2 (in progress)
+
+- Fixed 'mod' not working on postgres query-datum
+
 # v2.1.1
 
 - Fixed `difference` types
 - Fixed `update()` not actually working (whoops)
-- Fixex, when getting null, returning a blank object (which isn't null)
+- Fixed, when getting null from the db, returning `{ }` (which isn't null)
 
 # v2.1
 
