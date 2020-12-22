@@ -26,7 +26,7 @@ export declare class SQLite3TablePartial<T = any> extends SQLite3Stream<T> imple
     indexCreate(key: any): Datum<IndexChangeResult>;
     indexDrop<U extends keyof T>(key: U): Datum<IndexChangeResult>;
     indexDrop(key: any): Datum<IndexChangeResult>;
-    indexList(): Datum<any[]>;
+    indexList(): Datum<string[]>;
     run(): Promise<T[]>;
 }
 interface SQLite3Table<T = any> extends SQLite3TablePartial<T>, Table<T> {

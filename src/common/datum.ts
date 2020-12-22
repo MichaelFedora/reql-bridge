@@ -41,8 +41,8 @@ export abstract class AbstractDatumPartial<T = any> implements DatumPartial<T> {
 
   branch<U = any, V = any>(trueAction: Value<U> | (() => Value<U>), falseAction: Value<V> | (() => Value<V>)): Datum<U | V>;
   branch<U = any, V = any, W = any>(trueAction: Value<U> | (() => Value<U>),
-      test2: Value<any>, test2Action: Value<V> | (() => Value<V>),
-      falseAction: Value<W> | (() => Value<W>)): Datum<U | V | W>;
+    test2: Value<any>, test2Action: Value<V> | (() => Value<V>),
+    falseAction: Value<W> | (() => Value<W>)): Datum<U | V | W>;
   branch<U = any>(trueAction: Value<any> | (() => Value<any>),
     ...testsActionsAndFalseAction: (Value<any> | (() => Value<any>))[]): Datum<U> {
     if(testsActionsAndFalseAction.length % 2 < 1)
@@ -116,7 +116,7 @@ export abstract class AbstractDatumPartial<T = any> implements DatumPartial<T> {
     this.query.push({ cmd: 'count' });
     return this as any;
   }
-  difference(value: Value<T>): T extends any[] ? Datum<boolean> : never {
+  difference(value: Value<T>): T extends any[] ? Datum<T> : never {
     this.query.push({ cmd: 'difference', params: [value] });
     return this as any;
   }

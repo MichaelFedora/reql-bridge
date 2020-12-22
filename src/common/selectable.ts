@@ -15,7 +15,7 @@ export interface SelectableStream<T = any> extends StreamPartial<T> {
 export function makeSelector<T = any>(partial: SelectableDatum<T>): Datum<T> {
   const datum: any = function<U extends string | number>(attribute: Value<U>) {
     return makeSelector(partial._sel(attribute));
-    /*const sel = partial._sel(attribute);
+    /* const sel = partial._sel(attribute);
     if(sel === partial)
       return datum;
     else return makeSelector(sel);*/

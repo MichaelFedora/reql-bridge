@@ -1,3 +1,13 @@
+# v2.1.2 (in progress)
+
+- Fixed 'mod' not working on any query-datum
+
+# v2.1.1
+
+- Fixed `difference` types
+- Fixed `update()` not actually working (whoops)
+- Fixed, when getting null from the db, returning `{ }` (which isn't null)
+
 # v2.1
 
 - Added `branch` and `do` to Static Datums (`expr`)

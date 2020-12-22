@@ -80,9 +80,9 @@ class SQLite3SingleSelectionPartial<T = any> extends AbstractDatumPartial<T> imp
         let set = '';
         for(const k in params[0]) if(params[0][k] != null) {
           if(!set)
-            set = `[${k}]=${params[0][k]}`;
+            set = `[${k}]=${safen(params[0][k])}`;
           else
-            set += `, [${k}]=${params[0][k]}`;
+            set += `, [${k}]=${safen(params[0][k])}`;
         }
         query = `UPDATE [${tableName}] SET ${set} WHERE [${index}]=${safen(key)}`;
         break;

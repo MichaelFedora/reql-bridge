@@ -26,7 +26,7 @@ export abstract class SQLite3Stream<T = any> implements StreamPartial<T>, Select
 
   abstract count(): Datum<number>;
   abstract fork(): Stream<T>;
-  abstract async run(): Promise<T[]>;
+  abstract run(): Promise<T[]>;
 
   filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Stream<T> {
     this.query.push({ cmd: 'filter', params: [predicate] });
@@ -69,7 +69,7 @@ export abstract class SQLite3Stream<T = any> implements StreamPartial<T>, Select
     return this as any;
   }
 
-  protected async computeQuery(): Promise<{ cmdsApplied: number, select?: string, post?: string, limit?: number, kill?: boolean }> {
+  protected async computeQuery(): Promise<{ cmdsApplied: number; select?: string; post?: string; limit?: number; kill?: boolean }> {
     if(!this.query.length && !this.sel)
       return { cmdsApplied: 0, select: '*' };
     if(!this.query.length)

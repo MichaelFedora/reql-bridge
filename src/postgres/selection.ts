@@ -46,12 +46,12 @@ export class PostgresSelectionPartial<T = any> extends PostgresStream<T> impleme
 
         const poost = (post ? ' AND ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
         return this.db.get<{
-          'count': number
+          'count': number;
         }>(`SELECT COUNT(*) FROM ${JSON.stringify(tableName)} WHERE ${selection}${poost}`)
           .then(a => limit ? Math.min(a['count'], limit) : a['count']);
       }
       return this.db.get<{ 'count': number }>
-        (`SELECT COUNT(*) FROM ${JSON.stringify(tableName)} WHERE ${selection}`).then(a => a['count']);
+      (`SELECT COUNT(*) FROM ${JSON.stringify(tableName)} WHERE ${selection}`).then(a => a['count']);
     }));
   }
 

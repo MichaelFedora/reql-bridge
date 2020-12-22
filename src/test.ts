@@ -40,7 +40,7 @@ async function test(create: () => Promise<Database>, log?: string) {
       { name: 'key', type: 'string' },
       { name: 'value', type: 'any' }
     ]).run();
-    const table = db.table<{ key: string, value: any }>('my-table');
+    const table = db.table<{ key: string; value: any }>('my-table');
     await table.insert({ key: 'fooo', value: 'apple' }).run();
     await table.insert({ key: 'bar', value: 2 }).run();
     await table.insert({ key: 'yeet', value: { super: false } }).run();
@@ -58,9 +58,9 @@ async function test(create: () => Promise<Database>, log?: string) {
     // end sample
 
     const res = await db.tableCreate('test-table', [
-      { name: 'key', type: 'string' },
+      { name: 'key', type: 'string', index: true },
       { name: 'value', type: 'object' },
-      { name: 'count', type: 'number' },
+      { name: 'count', type: 'number', index: true },
       { name: 'sale', type: 'bool' }
     ])('tables_created').gt(0).run();
     logger.info('res: ', res);
@@ -68,15 +68,20 @@ async function test(create: () => Promise<Database>, log?: string) {
     logger.debug('types db: ', await db.table<{ types: string }>('__reql_typemap__').pluck('types').run().then(a => {
       return a.map(b => JSON.parse(b.types));
     }));
-    const testTbl = db.table<{ key: string; value: { type: string }; count: number; sale: boolean; }>('test-table');
+    const testTbl = db.table<{ key: string; value: { type: string }; count: number; sale: boolean }>('test-table');
     logger.info('testTbl insert: ', await testTbl.insert({ key: 'foo', value: { type: 'bar' }, count: 3, sale: false }).run());
     logger.info('testTbl insert: ', await testTbl.insert({ key: 'lime', value: { type: 'juice' }, count: 0, sale: true }).run());
     logger.info('testTbl insert: ', await testTbl.insert({ key: 'orange', value: { type: 'syrup' }, count: 1, sale: false }).run());
     logger.info('testTbl: ', await testTbl.run());
     logger.info('testTbl.get("foo"): ', await testTbl.get('foo').run());
+    logger.info('testTbl.get("fee"): ', await testTbl.get('fee').run());
     logger.info('testTbl.getAll({ type: "bar" }, { index: "value" }): ', await testTbl.getAll({ type: 'bar' }, { index: 'value' }).run());
-    logger.info('testTbl.insert(update): ',
+    logger.info('testTbl.getAll("foo", { index: "key" }): ', await testTbl.getAll('foo', { index: 'key' }).run());
+    logger.info('testTbl.getAll(2, { index: "count" }): ', await testTbl.getAll(2, { index: 'count' }).run());
+    logger.info('testTbl.insert(update)({ key: "lime", value: { type: "bar" } }): ',
       await testTbl.insert({ key: 'lime', value: { type: 'bar' } } as any, { conflict: 'update' }).run());
+    logger.info('testTbl.get("foo").update({ key: "foo", count: 5 }): ',
+      await testTbl.get('foo').update({ key: 'foo', count: 5 }).run());
     logger.info('testTbl: ', await testTbl.run());
     logger.info('testTbl.limit(2): ', await testTbl.limit(2).run());
     logger.info('testTbl.pluck("key", "count").filter({ value: { type: bar } }): ',

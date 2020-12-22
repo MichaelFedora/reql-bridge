@@ -80,9 +80,9 @@ class PostgresSingleSelectionPartial<T = any> extends AbstractDatumPartial<T> im
         let set = '';
         for(const k in params[0]) if(params[0][k] != null) {
           if(!set)
-            set = `${JSON.stringify(k)}=${params[0][k]}`;
+            set = `${JSON.stringify(k)}=${safen(params[0][k])}`;
           else
-            set += `, ${JSON.stringify(k)}=${params[0][k]}`;
+            set += `, ${JSON.stringify(k)}=${safen(params[0][k])}`;
         }
         query = `UPDATE ${JSON.stringify(tableName)} SET ${set} WHERE ${JSON.stringify(index)}=${safen(key)}`;
         break;

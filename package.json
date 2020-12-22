@@ -1,12 +1,13 @@
 {
   "name": "reql-bridge",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "ReQL(-like) interpreter for a multitude of databases",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
     "test": "del-cli lib && tsc && node lib/test.js",
-    "build": "del-cli lib && tsc"
+    "build": "del-cli lib && tsc",
+    "lint": "eslint . --ext .ts"
   },
   "repository": {
     "type": "git",
@@ -31,22 +32,25 @@
     "@log4js-node/log4js-api": "^1.0.2"
   },
   "optionalDependencies": {
-    "levelup": "^4.3.2",
-    "pg": "^7.17.1",
-    "sqlite3": "^4.1.1"
+    "levelup": "^4.4.0",
+    "pg": "^8.5.1",
+    "rethinkdb": "^2.4.2",
+    "sqlite3": "^5.0.0"
   },
   "devDependencies": {
     "@types/abstract-leveldown": "^5.0.1",
     "@types/leveldown": "^4.0.2",
     "@types/levelup": "^4.3.0",
-    "@types/pg": "^7.14.1",
+    "@types/pg": "^7.14.7",
     "@types/sqlite3": "^3.1.6",
-    "abstract-leveldown": "^6.2.2",
-    "del-cli": "^3.0.0",
-    "leveldown": "^5.4.1",
-    "log4js": "^6.1.0",
-    "source-map-support": "^0.5.16",
-    "tslint": "^5.20.1",
-    "typescript": "^3.7.4"
+    "@typescript-eslint/eslint-plugin": "^4.11.0",
+    "@typescript-eslint/eslint-plugin-tslint": "^4.11.0",
+    "@typescript-eslint/parser": "^4.11.0",
+    "abstract-leveldown": "^6.3.0",
+    "del-cli": "^3.0.1",
+    "eslint": "^7.16.0",
+    "log4js": "^6.3.0",
+    "source-map-support": "^0.5.19",
+    "typescript": "^4.1.3"
   }
 }

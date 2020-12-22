@@ -14,7 +14,7 @@ export interface WrappedSQLite3Database {
 
   // extensions
   getPrimaryKey(tableName: string): Promise<string>;
-  getKeys(tableName: string): Promise<{ name: string, primary?: boolean }[]>;
+  getKeys(tableName: string): Promise<{ name: string; primary?: boolean }[]>;
 }
 
 export interface WrappedSQLite3Statement {
@@ -33,14 +33,14 @@ class SQLite3Database implements WrappedSQLite3Database {
 
   private filename: string;
 
-  constructor(options?: { filename?: string, logger?: string }) {
+  constructor(options?: { filename?: string; logger?: string }) {
     options = Object.assign({ filename: ':memory:', logger: 'sqlite3' }, options);
     this.filename = options.filename;
     this.logger = getLogger(options.logger);
   }
 
   async init(): Promise<void> {
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       this.db = new Database(this.filename, err => err ? reject(err) : resolve());
     });
   }
@@ -106,9 +106,9 @@ class SQLite3Database implements WrappedSQLite3Database {
     return this.get<{ name: string }>(`SELECT name FROM pragma_table_info('${tableName}') where pk=1;`).then(a => a.name);
   }
 
-  public async getKeys(tableName: string): Promise<{ name: string, primary?: boolean }[]> {
-    return this.all<{ name: string, pk: number }>(`SELECT name,pk FROM pragma_table_info('${tableName}')`)
-        .then(arr => arr.map(a => (a.pk ? { name: a.name, primary: true } : { name: a.name })));
+  public async getKeys(tableName: string): Promise<{ name: string; primary?: boolean }[]> {
+    return this.all<{ name: string; pk: number }>(`SELECT name,pk FROM pragma_table_info('${tableName}')`)
+      .then(arr => arr.map(a => (a.pk ? { name: a.name, primary: true } : { name: a.name })));
   }
 }
 
@@ -161,7 +161,7 @@ class SQLite3Statement implements WrappedSQLite3Statement {
   }
 }
 
-export async function create(options?: { filename?: string, logger?: string }): Promise<WrappedSQLite3Database> {
+export async function create(options?: { filename?: string; logger?: string }): Promise<WrappedSQLite3Database> {
   const db = new SQLite3Database(options);
   await db.init();
   return db;

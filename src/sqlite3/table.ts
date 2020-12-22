@@ -108,9 +108,9 @@ export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements Ta
         }
       }
 
-      let query = `INSERT`;
+      let query = 'INSERT';
       if(options && options.conflict === 'replace')
-          query += ' OR REPLACE';
+        query += ' OR REPLACE';
       query += ` INTO [${tableName}] (${repKeys}) VALUES (${repValues})`;
 
       if(options && options.conflict === 'update') {
@@ -153,7 +153,7 @@ export class SQLite3TablePartial<T = any> extends SQLite3Stream<T> implements Ta
     }));
   }
 
-  indexList(): Datum<any[]> {
+  indexList(): Datum<string[]> {
     return expr(createQuery(async () => {
       const tableName = await resolveValue(this.tableName);
       const rows = await this.db.all<{ name: string }>(

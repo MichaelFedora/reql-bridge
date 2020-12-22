@@ -17,7 +17,7 @@ export class PostgresDatabase implements Database {
 
   private readonly typemapsTableName = '__reql_typemap__';
 
-  async init(options?: {  logger?: string, client?: Client } & PoolConfig) {
+  async init(options?: {  logger?: string; client?: Client } & PoolConfig) {
     options = Object.assign({ logger: 'pg' }, options);
     this.db = await createWrappedPostgresDB(Object.assign(options, { logger: options.logger + '.raw' }));
 
@@ -28,7 +28,7 @@ export class PostgresDatabase implements Database {
   }
 
   private get typemaps() {
-    return this.table<{ table: string, types: string }>(this.typemapsTableName);
+    return this.table<{ table: string; types: string }>(this.typemapsTableName);
   }
 
   readonly valueTypeMap = {
@@ -59,12 +59,12 @@ export class PostgresDatabase implements Database {
 
     return expr(createQuery(async () => {
       if(typeof tableName !== 'string')
-          tableName = await tableName.run();
+        tableName = await tableName.run();
       await this.db.exec(`CREATE TABLE IF NOT EXISTS ${JSON.stringify(tableName)} (${keys})`);
       await this.typemaps.insert({ table: tableName, types: JSON.stringify(schema) }, { conflict: 'replace' }).run();
       for(const index of indexes)
         await this.db.exec
-          (`CREATE INDEX ${JSON.stringify(tableName + '_' + index)} ON ${JSON.stringify(tableName)}(${JSON.stringify(index)})`);
+        (`CREATE INDEX ${JSON.stringify(tableName + '_' + index)} ON ${JSON.stringify(tableName)}(${JSON.stringify(index)})`);
 
       return { tables_created: 1 } as TableChangeResult;
     }));
@@ -73,7 +73,7 @@ export class PostgresDatabase implements Database {
   tableDrop(tableName: Value<string>): Datum<TableChangeResult> {
     return expr(createQuery(async () => {
       if(typeof tableName !== 'string')
-          tableName = await tableName.run();
+        tableName = await tableName.run();
       await this.db.exec(`DROP TABLE IF EXISTS ${JSON.stringify(tableName)}`);
       return { tables_dropped: 1 } as TableChangeResult;
     }));
@@ -82,17 +82,17 @@ export class PostgresDatabase implements Database {
   tableList(): Datum<string[]> {
     return expr(createQuery(async () => {
       const result = await this.db.all<{
-        name: string
-      }>(`SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public'`);
+        name: string;
+      }>('SELECT table_name AS name FROM information_schema.tables WHERE table_schema = \'public\'');
       return result.map(a => a.name);
     }));
   }
 
   table<T = any>(tableName: Value<string>): Table<T> {
     return createTable<T>(this.db, tableName, createQuery(async () =>
-        tableName !== this.typemapsTableName
-          ? await this.typemaps.get(tableName)('types').run().then(a => JSON.parse(a))
-          : this.typemapsType));
+      tableName !== this.typemapsTableName
+        ? await this.typemaps.get(tableName)('types').run().then(a => JSON.parse(a))
+        : this.typemapsType));
   }
 
   async close() {
@@ -100,7 +100,7 @@ export class PostgresDatabase implements Database {
   }
 }
 
-export async function create(options?: { logger?: string, client?: Client } & PoolConfig): Promise<Database> {
+export async function create(options?: { logger?: string; client?: Client } & PoolConfig): Promise<Database> {
   const db = new PostgresDatabase();
   await db.init(options);
   return db;
