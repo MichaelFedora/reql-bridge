@@ -75,8 +75,8 @@ export class SQLite3SelectionPartial<T = any> extends SQLite3Stream<T> implement
 
   fork(): Selection<T> {
     const clone = createSelection<T>(this.db, this.tableName, this.keys, this.index, this.types);
-    clone.query = this.query.slice();
-    clone.sel = this.sel;
+    (clone as any).__proto__.query = this.query.slice();
+    (clone as any).__proto__.sel = this.sel;
     return clone as any;
   }
 

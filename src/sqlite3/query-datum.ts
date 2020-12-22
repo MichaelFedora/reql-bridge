@@ -16,7 +16,7 @@ class SQLite3QueryDatumPartial<T = any> extends AbstractDatumPartial<T> implemen
 
   fork(): Datum<T> {
     const child = createQueryDatum<T>();
-    (child as any).query = this.query.slice();
+    (child as any).__proto__.query = this.query.slice();
     return child as any;
   }
 
@@ -98,7 +98,7 @@ class SQLite3QueryDatumPartial<T = any> extends AbstractDatumPartial<T> implemen
             throw new Error('Can only use "eq" and "ne" on sub-object!');
           sel = `(${sel} LIKE ${'"%' + (params[0] as string).slice(1, -1) + '%"'})`;
           break;
-        case 'length':
+        case 'len':
           if(sel2)
             throw new Error('Can only use "eq" and "ne" on sub-object!');
           sel = `LENGTH(${sel})`;

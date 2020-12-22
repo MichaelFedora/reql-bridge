@@ -38,7 +38,7 @@ export async function resolveQueryStatic<T = any>(
 
   for(const q of query) {
 
-    const params = q.params.slice();
+    const params = q.params && q.params.slice();
     if(params) { // reduce parameters
       for(let i = 0; i < q.params.length; i++)
         params[i] = await resolveValue(params[i]);
@@ -80,7 +80,6 @@ export async function resolveQueryStatic<T = any>(
                 retValue = await resolveValue(params[i](expr(value)));
               else
                 retValue = params[i];
-              break;
             }
           } else if(i === params.length - 1) { // false action
             if(typeof params[i] === 'function')
@@ -92,6 +91,19 @@ export async function resolveQueryStatic<T = any>(
           }
         }
         value = retValue;
+        break;
+
+      case 'startsWith':
+        value = (value as string).startsWith(params[0]);
+        break;
+      case 'endsWith':
+        value = (value as string).endsWith(params[0]);
+        break;
+      case 'substr':
+        value = (value as string).includes(params[0]);
+        break;
+      case 'len':
+        value = (value as string).length;
         break;
 
       case 'add':
