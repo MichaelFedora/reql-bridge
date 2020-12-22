@@ -73,6 +73,11 @@ See [DOCS.md](./DOCS.md) for types/function information.
   - `import { createRethinkDatabase } from 'reql-bridge';`
   - `const db = createRethinkDatabase({ logger: 'my-category.rethink', db: 'my-database' });`
 
+**To use with LevelDB:**
+  - install the `levelup` and `leveldown` optional dependencies: `npm i levelup leveldown`
+  - `import { createLevelDatabase } from 'reql-bridge';`
+  - `const db = createLevelDatabase({ logger: 'my-category.rethink', store: leveldown('./level') });`
+
 ## Building & Testing
 
 `npm test` to build & test.
