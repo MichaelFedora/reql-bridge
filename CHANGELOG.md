@@ -1,3 +1,6 @@
+# v2.2.1
+- Bump package.json version
+
 # v2.2.0
 
 - Fixed 'mod' not working on any query-datum
