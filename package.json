@@ -1,6 +1,6 @@
 {
   "name": "reql-bridge",
-  "version": "2.1.1",
+  "version": "2.2.1",
   "description": "ReQL(-like) interpreter for a multitude of databases",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
