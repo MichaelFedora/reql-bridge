@@ -53,7 +53,7 @@ to determine what it category it should use.
 
 ## Features
 
-See [DOCS.md]('./DOCS.md') for types/function information.
+See [DOCS.md](./DOCS.md) for types/function information.
 
 - `npm i reql-bridge --no-optional` (* not on NPM yet)
 - `npm i https://github.com/MichaelFedora/reql-bridge.git --no-optional`
@@ -67,6 +67,11 @@ See [DOCS.md]('./DOCS.md') for types/function information.
   - install the `pg` optional dependency: `npm i pg`
   - `import { createPostgreDatabase } from 'reql-bridge';`
   - `const db = createPostgreDatabase({ logger: 'my-category.pg' });`
+
+**To use with RethinkDB:**
+  - install the `rethinkdb-ts` optional dependency: `npm i rethinkdb-ts`
+  - `import { createRethinkDatabase } from 'reql-bridge';`
+  - `const db = createRethinkDatabase({ logger: 'my-category.rethink', db: 'my-database' });`
 
 ## Building & Testing
 

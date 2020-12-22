@@ -16,7 +16,7 @@ class PostgresQueryDatumPartial<T = any> extends AbstractDatumPartial<T> impleme
 
   fork(): Datum<T> {
     const child = createQueryDatum<T>();
-    (child as any).query = this.query.slice();
+    (child as any).__proto__.query = this.query.slice();
     return child as any;
   }
 
@@ -44,7 +44,7 @@ class PostgresQueryDatumPartial<T = any> extends AbstractDatumPartial<T> impleme
       switch(q.cmd) {
         case 'sel':
           if(sel2)
-            throw new Error('Cannot filter via sub-objects in SQLite3!');
+            throw new Error('Cannot filter via sub-objects!');
           else if(sel)
             sel2 = params[0].slice(1, -1); // get rid of the double quotes
           else
@@ -98,7 +98,7 @@ class PostgresQueryDatumPartial<T = any> extends AbstractDatumPartial<T> impleme
             throw new Error('Can only use "eq" and "ne" on sub-object!');
           sel = `(${sel} LIKE '%${(params[0] as string).slice(1, -1)}%')`;
           break;
-        case 'length':
+        case 'len':
           if(sel2)
             throw new Error('Can only use "eq" and "ne" on sub-object!');
           sel = `LENGTH(${sel})`;

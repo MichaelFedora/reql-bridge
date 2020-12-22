@@ -69,7 +69,7 @@ export interface Datum<T = any> extends DatumPartial<T> {
 export interface SingleSelectionPartial<T = any> extends DatumPartial<T> {
     fork(): SingleSelection<T>;
     update(obj: Value<DeepPartial<T>>): Datum<WriteResult<T>>;
-    replace(obj: Value<DeepPartial<T>>): Datum<WriteResult<T>>;
+    replace(obj: Value<T>): Datum<WriteResult<T>>;
     delete(): Datum<WriteResult<T>>;
 }
 export interface SingleSelection<T = any> extends SingleSelectionPartial<T>, Datum<T> {

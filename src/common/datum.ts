@@ -44,6 +44,8 @@ export abstract class AbstractDatumPartial<T = any> implements DatumPartial<T> {
     test2: Value<any>, test2Action: Value<V> | (() => Value<V>),
     falseAction: Value<W> | (() => Value<W>)): Datum<U | V | W>;
   branch<U = any>(trueAction: Value<any> | (() => Value<any>),
+    ...testsActionsAndFalseAction: (Value<any> | (() => Value<any>))[]): Datum<U>;
+  branch<U = any>(trueAction: Value<any> | (() => Value<any>),
     ...testsActionsAndFalseAction: (Value<any> | (() => Value<any>))[]): Datum<U> {
     if(testsActionsAndFalseAction.length % 2 < 1)
       throw new Error('Must have an action for every test, and a false action at the end!');
@@ -66,7 +68,7 @@ export abstract class AbstractDatumPartial<T = any> implements DatumPartial<T> {
     return this as any;
   }
   len(): T extends string ? Datum<number> : never {
-    this.query.push({ cmd: 'length' });
+    this.query.push({ cmd: 'len' });
     return this as any;
   }
 
@@ -120,7 +122,7 @@ export abstract class AbstractDatumPartial<T = any> implements DatumPartial<T> {
     this.query.push({ cmd: 'difference', params: [value] });
     return this as any;
   }
-  contains<U = any>(value: Value<U>): T extends U[] ? Datum<boolean> : never {
+  contains<U>(value: Value<U>): T extends U[] ? Datum<boolean> : never {
     this.query.push({ cmd: 'contains', params: [value] });
     return this as any;
   }
@@ -132,7 +134,7 @@ export abstract class AbstractDatumPartial<T = any> implements DatumPartial<T> {
     this.query.push({ cmd: 'limit', params: [n] });
     return this as any;
   }
-  pluck<U>(...fields: string[]): T extends U[] ? Datum<Partial<U>[]> : never {
+  pluck<U extends object>(...fields: string[]): T extends U[] ? Datum<Partial<U>[]> : never {
     this.query.push({ cmd: 'pluck', params: fields });
     return this as any;
   }

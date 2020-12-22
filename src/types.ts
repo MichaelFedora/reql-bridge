@@ -128,7 +128,7 @@ export interface SingleSelectionPartial<T = any> extends DatumPartial<T> {
   // OPERATIONS
 
   update(obj: Value<DeepPartial<T>>): Datum<WriteResult<T>>;
-  replace(obj: Value<DeepPartial<T>>): Datum<WriteResult<T>>;
+  replace(obj: Value<T>): Datum<WriteResult<T>>;
   delete(): Datum<WriteResult<T>>;
 }
 

@@ -27,7 +27,7 @@ class SQLite3SingleSelectionPartial<T = any> extends AbstractDatumPartial<T> imp
     return this as any;
   }
 
-  replace(obj: Value<DeepPartial<T>>): Datum<WriteResult<T>> {
+  replace(obj: Value<T>): Datum<WriteResult<T>> {
     this.query.push({ cmd: 'replace', params: [obj] });
     return this as any;
   }

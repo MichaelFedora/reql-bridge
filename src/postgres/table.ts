@@ -26,8 +26,8 @@ export class PostgresTablePartial<T = any> extends PostgresStream<T> implements 
   fork(): never;
   fork() { // for fake Selection<T>
     const child = createSelection(this.db, this.tableName, ['*'], this.primaryIndexGetter, this.types);
-    (child as any).query = this.query.slice();
-    (child as any).sel = this.sel;
+    (child as any).__proto__.query = this.query.slice();
+    (child as any).__proto__.sel = this.sel;
     return child;
   }
 
