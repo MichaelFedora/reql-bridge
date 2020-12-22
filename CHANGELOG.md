@@ -1,6 +1,15 @@
-# v2.1.2 (in progress)
+# v2.2.0
 
 - Fixed 'mod' not working on any query-datum
+- Fix queries not forking correctly
+- Fix length command mismatch
+- Fix a lot of issues with static datum
+  - Breaking on `branch` after the first statement
+  - Not having string commands (`startsWith`, `endsWith`, etc)
+  - Breaking when doing commands without any parameters (like `len`)
+- Fixed some typing issues with abstract datum and single-selection#replace
+- Add RethinkDB support
+- Update dependencies
 
 # v2.1.1
 

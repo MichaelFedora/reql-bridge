@@ -11,6 +11,7 @@ export declare abstract class AbstractDatumPartial<T = any> implements DatumPart
     do<U = any>(func: (value: Datum<T>) => Value<U>): Datum<U>;
     branch<U = any, V = any>(trueAction: Value<U> | (() => Value<U>), falseAction: Value<V> | (() => Value<V>)): Datum<U | V>;
     branch<U = any, V = any, W = any>(trueAction: Value<U> | (() => Value<U>), test2: Value<any>, test2Action: Value<V> | (() => Value<V>), falseAction: Value<W> | (() => Value<W>)): Datum<U | V | W>;
+    branch<U = any>(trueAction: Value<any> | (() => Value<any>), ...testsActionsAndFalseAction: (Value<any> | (() => Value<any>))[]): Datum<U>;
     startsWith(str: Value<string>): T extends string ? Datum<boolean> : never;
     endsWith(str: Value<string>): T extends string ? Datum<boolean> : never;
     substr(str: Value<string>): T extends string ? Datum<boolean> : never;
@@ -26,10 +27,10 @@ export declare abstract class AbstractDatumPartial<T = any> implements DatumPart
     le(...values: Value<number>[]): T extends number ? Datum<boolean> : never;
     count(): T extends any[] ? Datum<number> : never;
     difference(value: Value<T>): T extends any[] ? Datum<T> : never;
-    contains<U = any>(value: Value<U>): T extends U[] ? Datum<boolean> : never;
+    contains<U>(value: Value<U>): T extends U[] ? Datum<boolean> : never;
     filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): T extends any[] ? Datum<T> : never;
     limit(n: Value<number>): T extends any[] ? Datum<T> : never;
-    pluck<U>(...fields: string[]): T extends U[] ? Datum<Partial<U>[]> : never;
+    pluck<U extends object>(...fields: string[]): T extends U[] ? Datum<Partial<U>[]> : never;
     map<U, V = any>(predicate: (doc: Datum<U>) => Datum<V>): T extends U[] ? Datum<V[]> : never;
     abstract fork(): Datum<T>;
     abstract run(): Promise<T>;
