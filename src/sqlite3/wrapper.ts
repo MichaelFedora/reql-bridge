@@ -40,7 +40,7 @@ class SQLite3Database implements WrappedSQLite3Database {
   }
 
   async init(): Promise<void> {
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       this.db = new Database(this.filename, err => err ? reject(err) : resolve());
     });
   }

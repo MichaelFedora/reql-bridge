@@ -26,7 +26,7 @@ export abstract class PostgresStream<T = any> implements StreamPartial<T>, Selec
 
   abstract count(): Datum<number>;
   abstract fork(): Stream<T>;
-  abstract async run(): Promise<T[]>;
+  abstract run(): Promise<T[]>;
 
   filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Stream<T> {
     this.query.push({ cmd: 'filter', params: [predicate] });
