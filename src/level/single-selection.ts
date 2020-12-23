@@ -57,7 +57,7 @@ class LevelSingleSelectionPartial<T = any> extends AbstractDatumPartial<T> imple
     const table = await this.getTable();
 
     if(this.index)
-      key = await subdb(table, 'index_' + await resolveValue(this.index)).get(key);
+      key = await subdb(table, 'index!!' + await resolveValue(this.index)).get(key);
 
     const primaryTable = subdb(table, 'primary');
 

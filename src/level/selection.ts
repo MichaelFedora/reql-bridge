@@ -7,7 +7,7 @@ import { resolveValue, createQuery } from '../common/util';
 import { expr } from '../common/static-datum';
 
 import { LevelStream } from './stream';
-import { createPromiseArrayIteratable, subdb } from './util';
+import { createPromiseArrayIteratable, processStream, subdb } from './util';
 
 export class LevelSelectionPartial<T = any> extends LevelStream<T> implements SelectionPartial<T> {
 
@@ -24,8 +24,8 @@ export class LevelSelectionPartial<T = any> extends LevelStream<T> implements Se
     let keys = await resolveValue(this.keys);
 
     if(this.index != null) {
-      const idxTbl = subdb(tbl, await resolveValue(this.index));
-      keys = await Promise.all(keys.map(k => idxTbl.get(k).catch((e: any) => { if(e.notFound) return null; else throw e; })));
+      keys = await Promise.all(keys.map<Promise<string[]>>(k => tbl.get('!index!!' + this.index + '!' + k)
+        .catch((e: any) => { if(e.notFound) return []; else throw e; }))).then(res => [].concat(...res));
     }
 
     const pTable = subdb(tbl, 'primary');

@@ -67,8 +67,8 @@ export class LevelTablePartial<T = any> extends LevelStream<T> implements TableP
 
     return expr(createQuery(async () => {
       const table = await this.getTable();
-      const keys = await table.get('__index_list__');
-      const primaryKey = keys[0];
+      const indexes: string[] = await table.get('__index_list__');
+      const primaryKey = indexes.shift();
       let objKey = obj[primaryKey];
       const primaryTable = subdb(table, 'primary');
 
@@ -87,7 +87,21 @@ export class LevelTablePartial<T = any> extends LevelStream<T> implements TableP
             obj = Object.assign({ }, curr, obj);
         }
       }
-      const ret: WriteResult<T> = await primaryTable.put(objKey, obj).then(
+
+      const indexValues: string[][] = (await Promise.all(
+        indexes.map(i => table.get(`!index!!${i}!${obj[i]}`).catch(e => { if(e.notFound) return []; else throw e; }))
+      )).filter(ivs => !ivs.includes(objKey));
+
+      const ops: { type: 'put'; key: string; value: any }[] = [
+        { type: 'put', key: '!primary!' + objKey, value: obj },
+        ...(indexValues.map((iv, i) => ({
+          type: 'put',
+          key: `!index!!${indexes[i]}!${obj[indexes[i]]}`,
+          value: [...iv, objKey]
+        } as { type: 'put'; key: any; value: string[] })))
+      ];
+
+      const ret: WriteResult<T> = await table.batch(ops).then(
         () => ({ deleted: 0, skipped: 0, errors: 0, inserted: 1, replaced: 0, unchanged: 0 }),
         e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
       return ret;
@@ -120,7 +134,7 @@ export class LevelTablePartial<T = any> extends LevelStream<T> implements TableP
 
       await Promise.all([
         table.put('__index_list__', [...indexList, key]),
-        subdb(table, 'index_' + key).batch(ops)
+        subdb(table, 'index!!' + key).batch(ops)
       ]);
       return { dropped: 1 } as IndexChangeResult;
     }));
@@ -138,7 +152,7 @@ export class LevelTablePartial<T = any> extends LevelStream<T> implements TableP
 
       await Promise.all([
         table.put('__index_list__', indexList.filter(a => a !== key)),
-        subdb(table, 'index_' + key).clear()
+        subdb(table, 'index!!' + key).clear()
       ]);
       return { dropped: 1 } as IndexChangeResult;
     }));

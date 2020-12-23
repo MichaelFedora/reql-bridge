@@ -11,6 +11,7 @@ import { Client } from 'pg';
 import memdown from 'memdown';
 import LevelUp from 'levelup';
 import { processStream } from './level/util';
+import EncodingDown from 'encoding-down';
 
 const level = 'debug';
 const layout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %m' };
@@ -134,7 +135,7 @@ async function test(create: () => Promise<Database>, log?: string) {
   if(list.includes('__reql_typemap__'))
     await db.tableDrop('__reql_typemap__').run().catch(e => logger.error(e));
 
-  // await db.close(); */
+  // await db.close(); // */
   return errored;
 }
 
@@ -143,7 +144,7 @@ const rootLog = getLogger('root');
 (async () => {
   const errored = [];
   const store = memdown();
-  const root = LevelUp(store);
+  const root = LevelUp(EncodingDown(store, { valueEncoding: 'json' }));
   for(const [create, log] of [
     // [createSQLite3Database, 'sqlite3'],
     // [() => createPostgresDatabase({ client: new Client({ user: 'bobtest', password: 'keyboardcat', database: 'test' }) }), 'pg'],

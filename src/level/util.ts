@@ -30,13 +30,12 @@ export async function processStream<T = any, U = T>(stream: EventEmitter,
     const data: { key: any; value: Value<any> }[] = [];
     stream.on('data', (entry: { key: any; value: any }) => {
       for(const mod of modifiers) {
-        if (mod.type === 'test' && !mod.exec(entry.value))
+        if(mod.type === 'test' && !mod.exec(entry.value))
           return;
         else if (mod.type === 'transform')
           entry.value = mod.exec(entry.value);
-
-        data.push(entry);
       }
+      data.push(entry);
     })
       .on('end', () => { resolve(data); })
       .on('error', err => reject(err));

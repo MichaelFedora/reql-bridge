@@ -44,10 +44,6 @@ export class LevelDatabase implements Database {
       await this.db.put('__reql_table_list__', []);
   }
 
-  async dump() {
-    console.log(await processStream(this.db.createReadStream()));
-  }
-
   tableCreate(tableName: Value<string>, schema: readonly SchemaEntry[]): Datum<TableChangeResult> {
 
     if(!schema.length)
