@@ -26,20 +26,22 @@ export function subdb(db: LevelUp, prefix: string) {
 export async function processStream<T = any, U = T>(stream: EventEmitter,
   ...modifiers: { type: 'test' | 'transform'; exec: (entry: Value<any>) => Value<any> }[]): Promise<{ key: any; value: U }[]> {
 
-  const entries = await new Promise<{ key: any; value: Value<any> }[]>((resolve, reject) => {
-    const data: { key: any; value: Value<any> }[] = [];
+  const entries = await new Promise<Promise<{ key: any; value: any }>[]>((resolve, reject) => {
+    const data: Promise<{ key: any; value: any }>[] = [];
     stream.on('data', (entry: { key: any; value: any }) => {
-      for(const mod of modifiers) {
-        if(mod.type === 'test' && !mod.exec(entry.value))
-          return;
-        else if (mod.type === 'transform')
-          entry.value = mod.exec(entry.value);
-      }
-      data.push(entry);
+      data.push((async () => {
+        for(const mod of modifiers) {
+          if(mod.type === 'test' && !mod.exec(entry.value))
+            return null;
+          else if (mod.type === 'transform')
+            entry.value = await resolveValue(mod.exec(entry.value));
+        }
+        return entry;
+      })());
     })
       .on('end', () => { resolve(data); })
       .on('error', err => reject(err));
   });
 
-  return await Promise.all(entries.map(e => resolveValue(e.value).then(v => ({ key: e.key, value: v }))));
+  return (await Promise.all(entries)).filter(e => e != null);
 }

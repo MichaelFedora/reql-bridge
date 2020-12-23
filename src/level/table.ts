@@ -129,14 +129,11 @@ export class LevelTablePartial<T = any> extends LevelStream<T> implements TableP
           indexMap.get(iv.value).push(iv.key);
       }
 
-      const ops = [] as { type: 'put'; key: any; value: string[] }[];
-      indexMap.forEach((v, k) => ops.push({ type: 'put', key: k, value: v }));
+      const ops = [ { type: 'put', key: '__index_list__', value: [...indexList, key] }] as { type: 'put'; key: any; value: string[] }[];
+      indexMap.forEach((v, k) => ops.push({ type: 'put', key: '!index!!' + key + '!' + k, value: v }));
+      await table.batch(ops);
 
-      await Promise.all([
-        table.put('__index_list__', [...indexList, key]),
-        subdb(table, 'index!!' + key).batch(ops)
-      ]);
-      return { dropped: 1 } as IndexChangeResult;
+      return { created: 1 } as IndexChangeResult;
     }));
   }
 
@@ -152,7 +149,7 @@ export class LevelTablePartial<T = any> extends LevelStream<T> implements TableP
 
       await Promise.all([
         table.put('__index_list__', indexList.filter(a => a !== key)),
-        subdb(table, 'index!!' + key).clear()
+        subdb(subdb(table, 'index'), key).clear()
       ]);
       return { dropped: 1 } as IndexChangeResult;
     }));

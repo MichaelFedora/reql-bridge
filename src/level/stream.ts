@@ -37,6 +37,8 @@ export abstract class LevelStream<T = any> implements StreamPartial<T>, Selectab
 
   async run(): Promise<T[]> {
     const res = await this.compile();
+    this.query = [];
+    this.sel = '';
     return res.map(v => v.value);
   }
 
@@ -48,8 +50,8 @@ export abstract class LevelStream<T = any> implements StreamPartial<T>, Selectab
       return processStream<T>(await this.getStream(), { type: 'transform', exec: (entry) => entry[sel]});
 
     const modifiers = [
-      { type: 'test', exec: (entry) => entry.value != null },
-      { type: 'transform', exec: (entry) => expr(entry.value) }
+      { type: 'test', exec: (entry) => entry != null },
+      { type: 'transform', exec: (entry) => expr(entry) }
     ] as { type: 'test' | 'transform'; exec: (entry: Value<any>) => Value<any> }[];
 
     for(const q of this.query) {
@@ -59,7 +61,7 @@ export abstract class LevelStream<T = any> implements StreamPartial<T>, Selectab
 
       switch(q.cmd) {
         case 'sel':
-          modifiers.push({ type: 'transform', exec: (entry) => entry(q.params[0]) });
+          modifiers.push({ type: 'transform', exec: (entry) => ensureDatum(entry)(q.params[0]) });
           break;
 
         case 'filter':
@@ -73,7 +75,7 @@ export abstract class LevelStream<T = any> implements StreamPartial<T>, Selectab
           else
             predfoo = () => Boolean(pred);
 
-          modifiers.push({ type: 'test', exec: (entry) => predfoo(ensureDatum(entry)) });
+          modifiers.push({ type: 'test', exec: (entry) => predfoo(ensureDatum(entry).fork()) });
           break;
         case 'distinct':
           const hash: string[] = [];

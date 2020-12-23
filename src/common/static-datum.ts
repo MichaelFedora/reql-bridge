@@ -36,6 +36,7 @@ export async function resolveQueryStatic<T = any>(
 
   let value: any = await resolveValue(initialValue);
 
+
   for(const q of query) {
 
     const params = q.params && q.params.slice();
