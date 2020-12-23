@@ -89,8 +89,6 @@ export abstract class RethinkStream<T = any> implements StreamPartial<T>, Select
       for(const p of q.params)
         params.push(await resolveValue(p));
 
-      console.log('query', q.cmd);
-
       switch(q.cmd) {
         case 'sel':
           stream = stream(params[0]);

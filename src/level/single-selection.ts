@@ -1,14 +1,21 @@
-import { SingleSelectionPartial, Value, SchemaEntry, Datum, WriteResult, DeepPartial, SingleSelection } from '../types';
-import { WrappedLevelDatabase } from './wrapper';
-import { resolveValue, coerceCorrectReturn } from '../common/util';
+import { LevelUp } from 'levelup';
+import sub from 'subleveldown';
+
+import { SingleSelectionPartial, Value, Datum, WriteResult, DeepPartial, SingleSelection } from '../types';
+import { resolveValue } from '../common/util';
 import { SelectableDatum, makeSelector } from '../common/selectable';
 import { AbstractDatumPartial } from '../common/datum';
 import { resolveQueryStatic } from '../common/static-datum';
-import { safen } from './util';
+import { subdb } from './util';
 
 class LevelSingleSelectionPartial<T = any> extends AbstractDatumPartial<T> implements SingleSelectionPartial<T>, SelectableDatum<T> {
-  constructor(private db: WrappedLevelDatabase, private tableName: Value<string>,
-    private key: Value<any>, private index: Value<string>, private types: Value<SchemaEntry[]>) { super(); }
+
+  private async getTable(): Promise<LevelUp> {
+    return subdb(this.db, await resolveValue(this.tableName));
+  }
+
+  constructor(private db: LevelUp, private tableName: Value<string>,
+    private key: Value<any>, private index?: Value<string>) { super(); }
 
   _sel<U extends string | number>(attribute: Value<U>): U extends keyof T
     ? SelectableDatum<T[U]>
@@ -18,7 +25,7 @@ class LevelSingleSelectionPartial<T = any> extends AbstractDatumPartial<T> imple
     return this as any;
   }
 
-  readonly cmds = ['sel', 'update', 'replace', 'delete'];
+  readonly cmds = ['update', 'replace', 'delete'];
 
   // Selection
 
@@ -40,20 +47,22 @@ class LevelSingleSelectionPartial<T = any> extends AbstractDatumPartial<T> imple
   // Query
 
   fork(): SingleSelection<T> {
-    const clone = createSingleSelection<T>(this.db, this.tableName, this.key, this.index, this.types);
-    (clone as any).query = this.query.slice();
+    const clone = createSingleSelection<T>(this.db, this.tableName, this.key, this.index);
+    (clone as any).__proto__.query = this.query.slice();
     return clone;
   }
 
   async run(): Promise<T> {
-    const key = await resolveValue(this.key);
-    const index = await resolveValue(this.index);
-    const tableName = await resolveValue(this.tableName);
+    let key = await resolveValue(this.key);
+    const table = await this.getTable();
 
-    if(!this.query || !this.query.length) {
-      return this.db.get<T>(`SELECT * FROM ${JSON.stringify(tableName)} WHERE ${JSON.stringify(index)}=${safen(key)}`)
-        .then(async r => coerceCorrectReturn<T>(r, await resolveValue(this.types)));
-    }
+    if(this.index)
+      key = await subdb(table, 'index_' + await resolveValue(this.index)).get(key);
+
+    const primaryTable = subdb(table, 'primary');
+
+    if(!this.query.length)
+      return primaryTable.get(key).catch((e: any) => { if(e.notFound) return null; else throw e; });
 
     let cmd = '';
     const params: any[] = [];
@@ -68,61 +77,44 @@ class LevelSingleSelectionPartial<T = any> extends AbstractDatumPartial<T> imple
       }
     }
 
-    let query = '';
-    let sel = '';
+    let value: T | WriteResult<T>;
 
     switch(cmd) {
       case 'sel':
-        query = `SELECT ${params[0]} FROM ${JSON.stringify(tableName)} WHERE ${JSON.stringify(index)}=${safen(key)}`;
-        sel = params[0];
+        value = await primaryTable.get(key).then(a => a != null ? a[params[0]] : a)
+          .catch((e: any) => { if(e.notFound) return null; else throw e; });
         break;
       case 'update':
-        let set = '';
-        for(const k in params[0]) if(params[0][k] != null) {
-          if(!set)
-            set = `${JSON.stringify(k)}=${params[0][k]}`;
-          else
-            set += `, ${JSON.stringify(k)}=${params[0][k]}`;
-        }
-        query = `UPDATE ${JSON.stringify(tableName)} SET ${set} WHERE ${JSON.stringify(index)}=${safen(key)}`;
+        const old = await primaryTable.get(key).catch((e: any) => { if(e.notFound) return null; else throw e; });
+        value = await primaryTable.put(key, Object.assign({ }, old, params[0])).then(
+          () => ({ deleted: 0, skipped: 0, errors: 0, inserted: 1, replaced: 0, unchanged: 0 }),
+          e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
         break;
       case 'replace':
-        let repKeys = '';
-        let repValues = '';
-        for(const k in params[0]) if(params[0][k] != null) {
-          if(!repKeys) {
-            repKeys = `${JSON.stringify(k)}`;
-            repValues = `${params[0][k]}`;
-          } else {
-            repKeys += `, ${JSON.stringify(k)}`;
-            repValues += `, ${params[0][k]}`;
-          }
-        }
-        query = `REPLACE INTO ${JSON.stringify(tableName)} (${repKeys}) VALUES (${repValues}) WHERE ${[index]}=${safen(key)}`;
+        value = await primaryTable.put(key, params[0]).then(
+          () => ({ deleted: 0, skipped: 0, errors: 0, inserted: 0, replaced: 1, unchanged: 0 }),
+          e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
         break;
       case 'delete':
-        query = `DELETE FROM ${JSON.stringify(tableName)} WHERE ${[index]}=${safen(key)}`;
+        value = await primaryTable.del(key).then(
+          () => ({ deleted: 1, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 0 }),
+          e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
         break;
-
-      default:
-        query = `SELECT * FROM ${JSON.stringify(tableName)} WHERE ${[index]}=${safen(key)}`;
+      default: value = await primaryTable.get(key).catch((e: any) => { if(e.notFound) return null; else throw e; });
     }
 
-    const value = await this.db.get<T>(query).then(async r => coerceCorrectReturn<T>(r, await resolveValue(this.types)))
-      .then(a => sel ? a[sel] : a);
-
     if(this.query.length > 0) {
-      const ret = await resolveQueryStatic(this.query, value);
+      const ret = await resolveQueryStatic(this.query, value as any);
       this.query = [];
       return ret;
     } else {
-      return value;
+      return value as any;
     }
   }
 }
 
-export function createSingleSelection<T = any>(db: WrappedLevelDatabase, tableName: Value<string>,
-  key: Value<any>, index: Value<string>, types: Value<SchemaEntry[]>): SingleSelection<T> {
+export function createSingleSelection<T = any>(db: LevelUp, tableName: Value<string>,
+  key: Value<any>, index?: Value<string>): SingleSelection<T> {
 
-  return makeSelector(new LevelSingleSelectionPartial<T>(db, tableName, key, index, types)) as any;
+  return makeSelector(new LevelSingleSelectionPartial<T>(db, tableName, key, index)) as any;
 }

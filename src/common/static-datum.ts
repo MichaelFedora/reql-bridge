@@ -19,7 +19,7 @@ class StaticDatum<T = any> extends AbstractDatumPartial<T> implements DatumParti
 
   fork(): Datum<T> {
     const clone = expr(this.initialValue);
-    (clone as any).query = this.query.slice();
+    (clone as any).__proto__.query = this.query.slice();
     return clone;
   }
 
@@ -221,10 +221,16 @@ export async function resolveQueryStatic<T = any>(
 
 export function exprQuery<T = any>(initialValue: Value<T> | Value<T>, query: QueryEntry[]): Datum<T> {
   const datum = makeSelector<T>(new StaticDatum<T>(initialValue)) as any;
-  datum.query = query;
+  datum.__proto__.query = query;
   return datum;
 }
 
 export function expr<T = any>(initialValue: Value<T> | Value<T>): Datum<T> {
   return makeSelector<T>(new StaticDatum<T>(initialValue)) as any;
+}
+
+export function ensureDatum<T = any>(value: Value<T>): Datum<T> {
+  if(value instanceof AbstractDatumPartial)
+    return value as any;
+  else return expr(value);
 }

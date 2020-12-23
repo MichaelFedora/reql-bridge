@@ -1,16 +1,21 @@
+import { EventEmitter } from 'stream';
+
 import { Stream, StreamPartial, Value, Datum, DeepPartial } from '../types';
-import { WrappedLevelDatabase } from './wrapper';
-import { resolveValue, deepPartialToPredicate } from '../common/util';
-import { createQueryDatum } from './query-datum';
+import { resolveValue, deepPartialToPredicate, createQuery } from '../common/util';
 import { SelectableStream } from '../common/selectable';
 import { QueryEntry } from '../common/query-entry';
+import { ensureDatum, expr } from '../common/static-datum';
+
+import { processStream } from './util';
 
 export abstract class LevelStream<T = any> implements StreamPartial<T>, SelectableStream<T> {
 
   protected query: QueryEntry[] = [];
   protected sel: Value<string | number>;
 
-  constructor(protected db: WrappedLevelDatabase, protected tableName: Value<string>) { }
+  protected abstract getStream(): Promise<EventEmitter>;
+
+  constructor() { }
 
   _sel<U extends string | number>(attribute: Value<U>): U extends keyof T
     ? SelectableStream<T[U]>
@@ -24,9 +29,76 @@ export abstract class LevelStream<T = any> implements StreamPartial<T>, Selectab
     return this as any;
   }
 
-  abstract count(): Datum<number>;
+  count(): Datum<number> {
+    return expr(createQuery(() => this.run().then(res => res.length)));
+  }
+
   abstract fork(): Stream<T>;
-  abstract async run(): Promise<T[]>;
+
+  async run(): Promise<T[]> {
+    const res = await this.compile();
+    return res.map(v => v.value);
+  }
+
+  protected async compile(): Promise<{ key: string; value: T }[]> {
+    const sel = await resolveValue(this.sel);
+    if(!this.query.length && !this.sel)
+      return processStream<T>(await this.getStream());
+    if(!this.query.length)
+      return processStream<T>(await this.getStream(), { type: 'transform', exec: (entry) => entry[sel]});
+
+    const modifiers = [
+      { type: 'test', exec: (entry) => entry.value != null },
+      { type: 'transform', exec: (entry) => expr(entry.value) }
+    ] as { type: 'test' | 'transform'; exec: (entry: Value<any>) => Value<any> }[];
+
+    for(const q of this.query) {
+      const params = [];
+      for(const p of q.params)
+        params.push(await resolveValue(p));
+
+      switch(q.cmd) {
+        case 'sel':
+          modifiers.push({ type: 'transform', exec: (entry) => entry(q.params[0]) });
+          break;
+
+        case 'filter':
+          const pred: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>) = params[0];
+
+          let predfoo: ((doc: Datum<T>) => Value<boolean>);
+          if(typeof pred === 'function')
+            predfoo = pred as ((doc: Datum<T>) => Value<boolean>);
+          else if(typeof pred === 'object')
+            predfoo = deepPartialToPredicate(pred);
+          else
+            predfoo = () => Boolean(pred);
+
+          modifiers.push({ type: 'test', exec: (entry) => predfoo(ensureDatum(entry)) });
+          break;
+        case 'distinct':
+          const hash: string[] = [];
+          modifiers.push({ type: 'test', exec: (entry) => !hash.includes(JSON.stringify(entry)) });
+          break;
+        case 'pluck':
+          modifiers.push({ type: 'transform', exec: (entry) => {
+            const obj = { };
+            for(const key of params)
+              obj[key] = entry[key];
+            return obj;
+          }});
+          break;
+        case 'limit':
+          let count = 0;
+          modifiers.push({ type: 'test', exec: () => count++ < params[0] });
+          break;
+        case 'map':
+          const mapfoo: ((doc: Datum<T>) => any) = params[0];
+          modifiers.push({ type: 'transform', exec: (entry) => mapfoo(ensureDatum(entry)) });
+          break;
+      }
+    }
+    return processStream<T>(await this.getStream(), ...modifiers);
+  }
 
   filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Stream<T> {
     this.query.push({ cmd: 'filter', params: [predicate] });
@@ -67,76 +139,5 @@ export abstract class LevelStream<T = any> implements StreamPartial<T>, Selectab
       this.query.push({ cmd: 'pluck', params: fields });
     }
     return this as any;
-  }
-
-  protected async computeQuery(): Promise<{ cmdsApplied: number, select?: string, post?: string, limit?: number, kill?: boolean }> {
-    if(!this.query.length && !this.sel)
-      return { cmdsApplied: 0, select: '*' };
-    if(!this.query.length)
-      return { cmdsApplied: 0, select: `${JSON.stringify(this.sel)}` };
-
-    const tableName = await resolveValue(this.tableName);
-    const primaryKey = await this.db.getPrimaryKey(tableName);
-
-    let select = this.sel ? `${JSON.stringify(this.sel)}` : '*';
-    let post = undefined;
-    let limit = undefined;
-    let cmdsApplied = 0;
-    for(const q of this.query) {
-      const params = [];
-      for(const p of q.params)
-        params.push(await resolveValue(p));
-
-      switch(q.cmd) {
-        case 'filter':
-          const pred: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>) = params[0];
-
-          let predfoo: ((doc: Datum<T>) => Value<boolean>);
-          if(typeof pred === 'function')
-            predfoo = pred as ((doc: Datum<T>) => Value<boolean>);
-          else if(typeof pred === 'object')
-            predfoo = deepPartialToPredicate(pred);
-          else
-            predfoo = () => Boolean(pred);
-
-          const res = predfoo(createQueryDatum<T>());
-          if(typeof (res as any)['compile'] === 'function') {
-            const query = await (res as any).compile();
-
-            if(!post)
-              post = `${JSON.stringify(primaryKey)} in (SELECT ${JSON.stringify(primaryKey)}`
-                + ` FROM ${JSON.stringify(tableName)} WHERE ${query})`;
-            else
-              post = post.slice(0, -1) + ` AND (${query}))`;
-
-          } else if(!res) {
-            return { cmdsApplied: 0, kill: true };
-          } // if it's true, we're g2g anyways
-          cmdsApplied++;
-          break;
-        case 'distinct':
-          if(select.startsWith('DISTINCT'))
-            throw new Error('Cannot "distinct" something that is already "distinct"ed!');
-          select = 'DISTINCT ' + select;
-          cmdsApplied++;
-          break;
-        case 'pluck':
-          if(!select.endsWith('*'))
-            throw new Error('Cannot pluck on an already selected or plucked stream!');
-          select = select.slice(0, -1) + params.map(a => `${JSON.stringify(a)}`).join(', ');
-          cmdsApplied++;
-          break;
-        case 'limit':
-          limit = params[0];
-          cmdsApplied++;
-          break;
-        case 'map': // SKIP
-        default:
-          if(post)
-            return { select, post: post + ')', limit, cmdsApplied };
-          else return { select, limit, cmdsApplied };
-      }
-    }
-    return { select, post, limit, cmdsApplied };
   }
 }

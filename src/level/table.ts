@@ -1,23 +1,31 @@
+import { EventEmitter } from 'stream';
+
+import { LevelUp } from 'levelup';
+import { v4 as uuidV4 } from 'uuid';
+
 import {
   Table, TablePartial, IndexChangeResult,
-  Value, Datum, SchemaEntry, DeepPartial, WriteResult,
-  SingleSelection, Selection, Query, Stream
+  Value, Datum, DeepPartial, WriteResult,
+  SingleSelection, Selection, Stream
 } from '../types';
-import { createQuery, resolveValue, coerceCorrectReturn } from '../common/util';
-import { WrappedLevelDatabase } from './wrapper';
-import { LevelStream } from './stream';
-import { expr, exprQuery } from '../common/static-datum';
+
+import { createQuery, resolveValue } from '../common/util';
+import { expr } from '../common/static-datum';
+
+import { processStream, subdb } from './util';
 import { createSingleSelection } from './single-selection';
+import { LevelStream } from './stream';
 import { createSelection } from './selection';
-import { safen } from './util';
 
 export class LevelTablePartial<T = any> extends LevelStream<T> implements TablePartial<T> {
 
-  private get primaryIndexGetter(): Query<string> {
-    return createQuery(async () => this.db.getPrimaryKey(await resolveValue(this.tableName)));
-  }
+  constructor(protected db: LevelUp, protected tableName: Value<string>) { super(); }
 
-  constructor(db: WrappedLevelDatabase, tableName: Value<string>, private types: Value<SchemaEntry[]>) { super(db, tableName); }
+  getStream(): Promise<EventEmitter> { return this.getTable().then(tbl => subdb(tbl, 'primary').createReadStream()); }
+
+  async getTable(): Promise<LevelUp> {
+    return subdb(this.db, await resolveValue(this.tableName));
+  }
 
   filter(predicate: DeepPartial<T> | ((doc: Datum<T>) => Value<boolean>)): Selection<T> {
     return super.filter(predicate) as any;
@@ -25,55 +33,22 @@ export class LevelTablePartial<T = any> extends LevelStream<T> implements TableP
 
   fork(): never;
   fork() { // for fake Selection<T>
-    const child = createSelection(this.db, this.tableName, ['*'], this.primaryIndexGetter, this.types);
-    (child as any).query = this.query.slice();
-    (child as any).sel = this.sel;
+    const child = createSelection<T>(this.db, this.tableName);
+    (child as any).__proto__.query = this.query.slice();
+    (child as any).__proto__.sel = this.sel;
     return child;
   }
 
-  count(): Datum<number> {
-    return expr(createQuery(async() => {
-      const tableName = await resolveValue(this.tableName);
-      if(this.query.length) {
-        const { post, kill, limit } = await this.computeQuery();
-        if(kill) return 0;
-
-        this.query = [];
-
-        const poost = (post ? ` WHERE ${post}` : '') + (limit ? `LIMIT ${limit}` : '');
-        return this.db.get<{ 'count': number }>(`SELECT COUNT(*) FROM ${JSON.stringify(tableName)}${poost}`)
-          .then(a => limit ? Math.min(a['count'], limit) : a as any);
-      }
-      return this.db.get<{ 'count': number }>(`SELECT COUNT(*) FROM ${JSON.stringify(tableName)}`).then(a => a['count']);
-    }));
-  }
-
   delete(): Datum<WriteResult<T>> {
-    return expr(createQuery<WriteResult<T>>(async() => {
-      const tableName = await resolveValue(this.tableName);
-      if(this.query.length) {
-        const { post, kill, limit } = await this.computeQuery();
-        if(kill) return { deleted: 0, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 1 };
-
-        this.query = [];
-
-        const poost = (post ? ` WHERE ${post}` : '') + (limit ? `LIMIT ${limit}` : '');
-        return this.db.exec(`DELETE FROM ${JSON.stringify(tableName)}${poost}`).then(
-          () => ({ deleted: 1, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 0 }),
-          e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
-      }
-
-      return this.db.exec(`DELETE TABLE IF EXISTS ${JSON.stringify(tableName)}`).then(
+    return expr(createQuery<WriteResult<T>>(() => {
+      return this.getTable().then(tbl => tbl.clear()).then(
         () => ({ deleted: 1, skipped: 0, errors: 0, inserted: 0, replaced: 0, unchanged: 0 }),
         e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
     }));
   }
 
   get(key: any): SingleSelection<T> {
-    return createSingleSelection(this.db, this.tableName, key, createQuery(async () => {
-      const tableName = await resolveValue(this.tableName);
-      return this.db.getPrimaryKey(tableName);
-    }), this.types);
+    return createSingleSelection(this.db, this.tableName, key);
   }
 
   getAll(key: any, options?: { index: string }): Selection<T>; // not editable
@@ -81,47 +56,38 @@ export class LevelTablePartial<T = any> extends LevelStream<T> implements TableP
   getAll(...key: (number | string | { index: string })[]): Selection<T>;
   getAll(...values: (number | string | { index: string })[]): Selection<T> {
     let index: Value<string>;
-    if(values.length && typeof values[values.length - 1] === 'object') {
+    if(values.length && typeof values[values.length - 1] === 'object')
       index = (values.pop() as { index: string }).index;
-    } else {
-      index = createQuery(async () => {
-        const tableName = await resolveValue(this.tableName);
-        return this.db.getPrimaryKey(tableName);
-      });
-    }
-    return createSelection(this.db, this.tableName, values, index, this.types);
+
+    return createSelection(this.db, this.tableName, values, index);
   }
 
   insert(obj: T, options?: { conflict: 'error' | 'replace' | 'update' }): Datum<WriteResult<T>> {
+    options = Object.assign({ conflict: 'replace' }, options);
+
     return expr(createQuery(async () => {
-      const tableName = await resolveValue(this.tableName);
+      const table = await this.getTable();
+      const keys = await table.get('__index_list__');
+      const primaryKey = keys[0];
+      let objKey = obj[primaryKey];
+      const primaryTable = subdb(table, 'primary');
 
-      let repKeys = '';
-      let repValues = '';
-      for(const k in obj) if(obj[k] != null) {
-        if(!repKeys) {
-          repKeys = `${JSON.stringify(k)}`;
-          repValues = `${safen(obj[k])}`;
-        } else {
-          repKeys += `, ${JSON.stringify(k)}`;
-          repValues += `, ${safen(obj[k])}`;
-        }
-      }
+      if(!objKey) {
+        do {
+          objKey = uuidV4();
+        } while(await primaryTable.get(objKey).catch((e: any) => { if(e.notFound) return null; else throw e; }));
 
-      let query = `INSERT INTO ${JSON.stringify(tableName)} (${repKeys}) VALUES (${repValues})`;
+      } else if(options.conflict !== 'replace') {
+        const curr = await primaryTable.get(objKey).catch((e: any) => { if(e.notFound) return null; else throw e; });
 
-      if(options && (options.conflict === 'update' || options.conflict === 'replace')) {
-        const primaryKey = await this.db.getPrimaryKey(tableName);
-        let set = '';
-        for(const k in obj) if(obj[k] != null) {
-          if(!set)
-            set = `${JSON.stringify(k)}=excluded.${JSON.stringify(k)}`;
+        if(curr) {
+          if(options.conflict === 'error')
+            throw new Error('Object with primary key ' + objKey + ' already exists!');
           else
-            set += `, ${JSON.stringify(k)}=excluded.${JSON.stringify(k)}`;
+            obj = Object.assign({ }, curr, obj);
         }
-        query += ` ON CONFLICT(${JSON.stringify(primaryKey)}) DO UPDATE SET ${set}`;
       }
-      const ret: WriteResult<T> = await this.db.exec(query).then(
+      const ret: WriteResult<T> = await primaryTable.put(objKey, obj).then(
         () => ({ deleted: 0, skipped: 0, errors: 0, inserted: 1, replaced: 0, unchanged: 0 }),
         e => ({ deleted: 0, skipped: 1, errors: 1, first_error: String(e), inserted: 0, replaced: 0, unchanged: 1 }));
       return ret;
@@ -133,9 +99,30 @@ export class LevelTablePartial<T = any> extends LevelStream<T> implements TableP
   // indexCreate(name: Value<String>, indexFunction: (doc: Datum<T>) => Value<boolean>): Datum<IndexChangeResult>;
   indexCreate(key: any): Datum<IndexChangeResult> {
     return expr(createQuery(async () => {
-      const tableName = await resolveValue(this.tableName);
-      await this.db.exec(`CREATE INDEX ${JSON.stringify(tableName + '_' + key)} ON ${JSON.stringify(tableName)}(${JSON.stringify(key)})`);
-      return { created: 1 } as IndexChangeResult;
+      const table = await this.getTable();
+      const indexList: string[] = await table.get('__index_list__');
+      if(indexList.includes(key))
+        return { created: 0 } as IndexChangeResult;
+
+      const indexValues: { key: string; value: any }[] = await processStream(subdb(table, 'primary').createReadStream(),
+        { type: 'transform', exec: (entry) => ({ key: entry.key, value: entry.value[key] }) });
+
+      const indexMap = new Map<any, string[]>();
+      for(const iv of indexValues) {
+        if(!indexMap.get(iv.value))
+          indexMap.set(iv.value, [iv.key]);
+        else
+          indexMap.get(iv.value).push(iv.key);
+      }
+
+      const ops = [] as { type: 'put'; key: any; value: string[] }[];
+      indexMap.forEach((v, k) => ops.push({ type: 'put', key: k, value: v }));
+
+      await Promise.all([
+        table.put('__index_list__', [...indexList, key]),
+        subdb(table, 'index_' + key).batch(ops)
+      ]);
+      return { dropped: 1 } as IndexChangeResult;
     }));
   }
 
@@ -144,60 +131,28 @@ export class LevelTablePartial<T = any> extends LevelStream<T> implements TableP
   indexDrop(key: any): Datum<IndexChangeResult>;
   indexDrop(key: any): Datum<IndexChangeResult> {
     return expr(createQuery(async () => {
-      const tableName = await resolveValue(this.tableName);
-      await this.db.exec(`DROP INDEX ${JSON.stringify(tableName + '_' + key)}`);
+      const table = await this.getTable();
+      const indexList: string[] = await table.get('__index_list__');
+      if(!indexList.includes(key))
+        return { dropped: 0 } as IndexChangeResult;
+
+      await Promise.all([
+        table.put('__index_list__', indexList.filter(a => a !== key)),
+        subdb(table, 'index_' + key).clear()
+      ]);
       return { dropped: 1 } as IndexChangeResult;
     }));
   }
 
-  indexList(): Datum<any[]> {
-    return expr(createQuery(async () => {
-      const tableName = await resolveValue(this.tableName);
-      const rows = await this.db.all<{ indexname: string }>(
-        `SELECT indexname FROM pg_indexes WHERE tablename=${safen(tableName)};`);
-      return rows.map(row => row.indexname.slice(tableName.length + 1));
-    }));
-  }
-
-  async run(): Promise<T[]> {
-    const tableName = await resolveValue(this.tableName);
-    if(this.sel || this.query.length) {
-      const { select, post, kill, limit, cmdsApplied } = await this.computeQuery();
-
-      if(kill) return [];
-
-      const poost = (post ? ' WHERE ' + post : '') + (limit ?  ' LIMIT ' + limit : '');
-      return this.db.all<T[]>(`SELECT ${select} FROM ${JSON.stringify(tableName)}${poost}`).then(async rs => {
-        const types = await resolveValue(this.types);
-        let res: any[] = rs.map(r => coerceCorrectReturn<T>(r, types));
-
-        if(this.sel) {
-          const sel = await resolveValue(this.sel);
-          res = res.map(a => a[sel]);
-        }
-
-        const query = this.query.slice(cmdsApplied);
-        if(query.length)
-          res = await exprQuery(res, query).run();
-
-        this.sel = undefined;
-        this.query = [];
-
-        this.query = [];
-        return res;
-      });
-    }
-    return this.db.all<T[]>(`SELECT * FROM ${JSON.stringify(tableName)}`).then(async rs => {
-      const types = await resolveValue(this.types);
-      return rs.map(r => coerceCorrectReturn<T>(r, types));
-    });
+  indexList(): Datum<string[]> {
+    return expr(createQuery(() => this.getTable().then(tbl => tbl.get('__index_list__'))));
   }
 }
 
 interface LevelTable<T = any> extends LevelTablePartial<T>, Table<T> { }
 
-export function createTable<T = any>(db: WrappedLevelDatabase, tableName: Value<string>, types: Value<SchemaEntry[]>): LevelTable<T> {
-  const instance = new LevelTablePartial<T>(db, tableName, types);
+export function createTable<T = any>(db: LevelUp, tableName: Value<string>): LevelTable<T> {
+  const instance = new LevelTablePartial<T>(db, tableName);
   const o: Table<T> = Object.assign(
     (attribute: Value<string | number>) => { instance._sel(attribute); return o; /* override return */ },
     {

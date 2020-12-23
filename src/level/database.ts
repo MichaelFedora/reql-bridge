@@ -1,71 +1,76 @@
 import { Value, Database, SchemaEntry, Datum, TableChangeResult, Table } from '../types';
 import { AbstractLevelDOWN } from 'abstract-leveldown';
+import encodeLevel from 'encoding-down';
+import * as sub from 'subleveldown';
 import { createQuery } from '../common/util';
 import { expr } from '../common/static-datum';
 import { createTable } from './table';
-import { safen } from './util';
-import levelup from 'levelup';
-import { LevelUp } from 'levelup';
+import levelup, { LevelUp } from 'levelup';
+import { processStream, subdb } from './util';
+
+/*
+Level tables work like so:
+
+db.get({table}.__index_list__) => field[] -- first is primary
+db.get({table}._index_.{index}) => key[]
+db.get({table}._primary_.{key}) => value
+
+db.put({table}._primary_.{key}, object)
+indexes = db.get({table}.__index_list__);
+for(i of indexes) {
+  let old = db.get({table}._index_.{index}.{value})
+  db.put({table}._index_.{index}.{value}, [...old, key])
+}
+
+db.del({table}._primary_.{key})
+indexes = db.get({table}.__index_list__);
+for(i of indexes) {
+  let old = db.get({table}._index_.{index}.{value})
+  db.put({table}._index_.{index}.{value}, old.filter(a => a !== key))
+}
+*/
 
 export class LevelDatabase implements Database {
 
   private db: LevelUp;
 
-  private readonly typemapsType: readonly SchemaEntry[] = Object.freeze([
-    { name: 'table', type: 'string' },
-    { name: 'types', type: 'string' },
-  ]);
-
-  private readonly typemapsTableName = '__reql_typemap__';
-
-  async init<DB extends AbstractLevelDOWN = AbstractLevelDOWN>(options?: {  logger?: string, store: DB, options?: any }) {
+  async init<DB extends AbstractLevelDOWN = AbstractLevelDOWN>(options?: {  logger?: string; store: DB; options?: any }) {
     options = Object.assign({ logger: 'level' }, options);
-    this.db = levelup(options.store, options.options);
+    this.db = levelup(encodeLevel(options.store, { keyEncoding: 'string', valueEncoding: 'json' }),
+      options.options, err => { if(err) throw err; });
 
-    const tableList = await this.tableList().run();
-    if(!tableList.find(a => a === this.typemapsTableName)) {
-      await this.tableCreate(this.typemapsTableName, this.typemapsType).run();
-    }
+    const list = await this.db.get('__reql_table_list__').catch((e: any) => { if(e.notFound) return null; else throw e; });
+    if(!list)
+      await this.db.put('__reql_table_list__', []);
   }
 
-  private get typemaps() {
-    return this.table<{ table: string, types: string }>(this.typemapsTableName);
+  async dump() {
+    console.log(await processStream(this.db.createReadStream()));
   }
-
-  readonly valueTypeMap = {
-    string: 'text',
-    bool: 'boolean',
-    number: 'numeric',
-    object: 'text', // yeeep
-  };
 
   tableCreate(tableName: Value<string>, schema: readonly SchemaEntry[]): Datum<TableChangeResult> {
 
-    const indexes: string[] = [];
-
-    let keys = '';
-    for(const key of schema) {
-      if(!keys) { // primary key
-        keys = `${JSON.stringify(key.name)} ${this.valueTypeMap[key.type] || 'text'} primary key`;
-      } else {
-        keys += `, ${JSON.stringify(key.name)} ${this.valueTypeMap[key.type] || 'text'}`;
-      }
-
-      if(key.index)
-        indexes.push(key.name);
-    }
-
-    if(keys.length === 0)
+    if(!schema.length)
       throw new Error('Must have a schema of at least one entry!');
+
+    let indexes: string[] = schema.reduce((acc, c) => { if(c.index) acc.push(c.name); return acc; }, [] as string[]);
+    if(!indexes.length)
+      indexes = [schema[0].name];
 
     return expr(createQuery(async () => {
       if(typeof tableName !== 'string')
-          tableName = await tableName.run();
-      await this.db.exec(`CREATE TABLE IF NOT EXISTS ${JSON.stringify(tableName)} (${keys})`);
-      await this.typemaps.insert({ table: tableName, types: JSON.stringify(schema) }, { conflict: 'replace' }).run();
-      for(const index of indexes)
-        await this.db.exec
-          (`CREATE INDEX ${JSON.stringify(tableName + '_' + index)} ON ${JSON.stringify(tableName)}(${JSON.stringify(index)})`);
+        tableName = await tableName.run();
+
+      const tableList: string[] = await this.db.get('__reql_table_list__').catch((e: any) => { if(e.notFound) return null; else throw e; });
+      if(tableList.includes(tableName))
+        return { tables_created: 0 } as TableChangeResult;
+
+      const table = subdb(this.db, tableName);
+
+      await Promise.all([
+        table.put('__index_list__', indexes),
+        this.db.put('__reql_table_list__', [...tableList, tableName])
+      ]);
 
       return { tables_created: 1 } as TableChangeResult;
     }));
@@ -74,26 +79,27 @@ export class LevelDatabase implements Database {
   tableDrop(tableName: Value<string>): Datum<TableChangeResult> {
     return expr(createQuery(async () => {
       if(typeof tableName !== 'string')
-          tableName = await tableName.run();
-      await this.db.exec(`DROP TABLE IF EXISTS ${JSON.stringify(tableName)}`);
+        tableName = await tableName.run();
+
+      const tableList: string[] = await this.db.get('__reql_table_list__').catch((e: any) => { if(e.notFound) return null; else throw e; });
+      if(!tableList.includes(tableName))
+        return { tables_dropped: 0 } as TableChangeResult;
+
+      await Promise.all([
+        this.db.put('__reql_table_list__', tableList.filter(a => a !== tableName)),
+        subdb(this.db, tableName).clear()
+      ]);
+
       return { tables_dropped: 1 } as TableChangeResult;
     }));
   }
 
   tableList(): Datum<string[]> {
-    return expr(createQuery(async () => {
-      const result = await this.db.all<{
-        name: string
-      }>(`SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public'`);
-      return result.map(a => a.name);
-    }));
+    return expr(createQuery(() => this.db.get('__reql_table_list__').catch((e: any) => { if(e.notFound) return null; else throw e; }) ));
   }
 
   table<T = any>(tableName: Value<string>): Table<T> {
-    return createTable<T>(this.db, tableName, createQuery(async () =>
-        tableName !== this.typemapsTableName
-          ? await this.typemaps.get(tableName)('types').run().then(a => JSON.parse(a))
-          : this.typemapsType));
+    return createTable<T>(this.db, tableName);
   }
 
   async close() {
@@ -102,7 +108,7 @@ export class LevelDatabase implements Database {
 }
 
 export async function create<DB extends AbstractLevelDOWN = AbstractLevelDOWN>(
-  options: { logger?: string, store: DB, options?: any }): Promise<Database> {
+  options: { logger?: string; store: DB; options?: any }): Promise<Database> {
 
   const db = new LevelDatabase();
   await db.init(options);

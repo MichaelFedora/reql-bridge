@@ -8,7 +8,9 @@ import {
   Database
 } from './index';
 import { Client } from 'pg';
-import leveldown from 'leveldown';
+import memdown from 'memdown';
+import LevelUp from 'levelup';
+import { processStream } from './level/util';
 
 const level = 'debug';
 const layout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %m' };
@@ -41,13 +43,17 @@ async function test(create: () => Promise<Database>, log?: string) {
       await db.tableDrop('my_table').run();
 
     await db.tableCreate('my_table', [
-      { name: 'key', type: 'string' },
-      { name: 'value', type: 'any' }
+      { name: 'key', type: 'string', index: true },
+      { name: 'value', type: 'any', index: true }
     ]).run();
     const table = db.table<{ key: string; value: any }>('my_table');
     await table.insert({ key: 'fooo', value: 'apple' }).run();
     await table.insert({ key: 'bar', value: 2 }).run();
     await table.insert({ key: 'yeet', value: { super: false } }).run();
+    console.log(await table.run());
+    console.log(await table.get('fooo').run());
+    console.log(await table.getAll('fooo', 'bar').run());
+    console.log(await table.getAll('apple', 2, { index: 'value' }).run());
 
     console.log(await table.get('bar')('value').run()); // 2
     console.log(await table.filter(doc => doc('key').len().ge(4)).run());
@@ -119,7 +125,7 @@ async function test(create: () => Promise<Database>, log?: string) {
 
   // cleanup!
 
-  const list = await db.tableList().run();
+  /* const list = await db.tableList().run();
 
   if(list.includes('my_table'))
     await db.tableDrop('my_table').run().catch(e => logger.error(e));
@@ -128,7 +134,7 @@ async function test(create: () => Promise<Database>, log?: string) {
   if(list.includes('__reql_typemap__'))
     await db.tableDrop('__reql_typemap__').run().catch(e => logger.error(e));
 
-  await db.close();
+  // await db.close(); */
   return errored;
 }
 
@@ -136,17 +142,22 @@ const rootLog = getLogger('root');
 
 (async () => {
   const errored = [];
+  const store = memdown();
+  const root = LevelUp(store);
   for(const [create, log] of [
-    [createSQLite3Database, 'sqlite3'],
-    [() => createPostgresDatabase({ client: new Client({ user: 'bobtest', password: 'keyboardcat', database: 'test' }) }), 'pg'],
-    [() => createRethinkDatabase({ host: '127.0.0.1', port: 28015, db: 'reql_bridge_test' }), 'rethink'],
-    [() => createLevelDatabase({ store: leveldown('./test-db/level') })]
+    // [createSQLite3Database, 'sqlite3'],
+    // [() => createPostgresDatabase({ client: new Client({ user: 'bobtest', password: 'keyboardcat', database: 'test' }) }), 'pg'],
+    // [() => createRethinkDatabase({ host: '127.0.0.1', port: 28015, db: 'reql_bridge_test' }), 'rethink'],
+    [() => createLevelDatabase({ store: store }), 'level']
   ] as [() => Promise<Database>, string][]) {
     if(await test(create, log).catch(e => { rootLog.error(e); return true; }))
       errored.push(log);
   }
   for(const db of errored)
     rootLog.error(db + ' test failed!');
+
+  console.log(await processStream(root.createReadStream()));
+  await root.close();
 })().then(() => {
   process.exit(0);
 }).catch(e => {
