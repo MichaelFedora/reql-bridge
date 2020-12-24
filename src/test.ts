@@ -54,7 +54,7 @@ async function test(create: () => Promise<Database>, log?: string) {
     console.log(await table.run());
     console.log(await table.get('fooo').run());
     console.log(await table.getAll('fooo', 'bar').run());
-    console.log(await table.getAll('apple', 2, { index: 'value' }).run());
+    // console.log(await table.getAll('apple', 2, { index: 'value' }).run());
 
     console.log(await table.get('bar')('value').run()); // 2
     console.log(await table.filter(doc => doc('key').len().ge(4)).run());
@@ -105,13 +105,15 @@ async function test(create: () => Promise<Database>, log?: string) {
     logger.info('testTbl: ', await testTbl.run());
     logger.info('testTbl.limit(2): ', await testTbl.limit(2).run());
     logger.info('testTbl.pluck("key", "count").filter({ value: { type: bar } }): ',
-      await testTbl.pluck('key', 'count').filter({ value: { type: 'bar' } }).run());
+      await testTbl.pluck('key', 'count').filter({ value: { type: 'bar' } }).run()); // should not work
+    logger.info('testTbl.pluck("key", "value").filter({ value: { type: bar } }): ',
+      await testTbl.pluck('key', 'value').filter({ value: { type: 'bar' } }).run()); // should not work
     logger.info('testTbl("key"): ', await testTbl('key').run());
     logger.info('testTbl("value")("type").filter(doc => doc.len().ge(4)): ',
       await testTbl('value')('type').filter(doc => doc.len().ge(4)).run());
     logger.info('testTbl.get("lime")("value")("type"): ', await testTbl.get('lime')('value')('type').run());
     logger.info('testTbl.filter(doc => doc("key").len().ge(4)): ', await testTbl.filter(doc => doc('key').len().ge(4)).run());
-    logger.info('testTbl.get("foo")("count").do(v => v.add(1)).gt(4).branch("yes", () => "no"))',
+    logger.info('testTbl.get("foo")("count").do(v => v.add(-1)).gt(4).branch("yes", () => "no"))',
       await testTbl.get('foo')('count').do(v => v.add(-1)).gt(4).branch<string>('yes', () => 'no').run());
 
     logger.info('testTbl.indexList(): ', await testTbl.indexList().run());
@@ -126,7 +128,7 @@ async function test(create: () => Promise<Database>, log?: string) {
 
   // cleanup!
 
-  /* const list = await db.tableList().run();
+  const list = await db.tableList().run();
 
   if(list.includes('my_table'))
     await db.tableDrop('my_table').run().catch(e => logger.error(e));
@@ -135,7 +137,7 @@ async function test(create: () => Promise<Database>, log?: string) {
   if(list.includes('__reql_typemap__'))
     await db.tableDrop('__reql_typemap__').run().catch(e => logger.error(e));
 
-  // await db.close(); // */
+  await db.close(); // */
   return errored;
 }
 
@@ -143,22 +145,19 @@ const rootLog = getLogger('root');
 
 (async () => {
   const errored = [];
-  const store = memdown();
-  const root = LevelUp(EncodingDown(store, { valueEncoding: 'json' }));
   for(const [create, log] of [
     // [createSQLite3Database, 'sqlite3'],
     // [() => createPostgresDatabase({ client: new Client({ user: 'bobtest', password: 'keyboardcat', database: 'test' }) }), 'pg'],
     // [() => createRethinkDatabase({ host: '127.0.0.1', port: 28015, db: 'reql_bridge_test' }), 'rethink'],
-    [() => createLevelDatabase({ store: store }), 'level']
+    [() => createLevelDatabase({ store: memdown() }), 'level']
   ] as [() => Promise<Database>, string][]) {
     if(await test(create, log).catch(e => { rootLog.error(e); return true; }))
       errored.push(log);
   }
+
   for(const db of errored)
     rootLog.error(db + ' test failed!');
 
-  console.log(await processStream(root.createReadStream()));
-  await root.close();
 })().then(() => {
   process.exit(0);
 }).catch(e => {

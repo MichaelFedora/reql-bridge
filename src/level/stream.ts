@@ -21,10 +21,8 @@ export abstract class LevelStream<T = any> implements StreamPartial<T>, Selectab
     ? SelectableStream<T[U]>
     : SelectableStream<any> {
 
-    if(!this.sel)
-      this.sel = attribute;
-    else
-      this.query.push({ cmd: 'sel', params: [attribute] });
+    this.sel = attribute;
+    this.query.push({ cmd: 'sel', params: [attribute] });
 
     return this as any;
   }
@@ -75,7 +73,7 @@ export abstract class LevelStream<T = any> implements StreamPartial<T>, Selectab
           else
             predfoo = () => Boolean(pred);
 
-          modifiers.push({ type: 'test', exec: (entry) => predfoo(ensureDatum(entry).fork()) });
+          modifiers.push({ type: 'test', exec: (entry) => predfoo(entry) });
           break;
         case 'distinct':
           const hash: string[] = [];

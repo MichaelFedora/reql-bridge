@@ -50,12 +50,14 @@ export async function resolveQueryStatic<T = any>(
       case 'sel':
         if(value instanceof Array)
           value = value.map(a => a[params[0]]);
-        else
+        else if(typeof value === 'object' && value != null)
           value = value[params[0]];
+        else
+          value = undefined;
         break;
 
       case 'eq':
-        value = !params.find(a => a !== value);
+        value = Boolean(params.find(a => a === value));
         break;
       case 'ne':
         value = Boolean(params.find(a => a !== value));
@@ -95,16 +97,16 @@ export async function resolveQueryStatic<T = any>(
         break;
 
       case 'startsWith':
-        value = (value as string).startsWith(params[0]);
+        value = (value as string || '').startsWith(params[0]);
         break;
       case 'endsWith':
-        value = (value as string).endsWith(params[0]);
+        value = (value as string || '').endsWith(params[0]);
         break;
       case 'substr':
-        value = (value as string).includes(params[0]);
+        value = (value as string || '').includes(params[0]);
         break;
       case 'len':
-        value = (value as string).length;
+        value = (value as string || '').length;
         break;
 
       case 'add':
@@ -193,15 +195,25 @@ export async function resolveQueryStatic<T = any>(
         value = (value as any[]).filter(a => predfoo(expr(a)));
         break;
       case 'pluck':
-        const newvalue = [];
-        for(const item of value) {
-          const newitem = { };
-          for(const key of params as string[]) if(item[key]) {
-            newitem[key] = value[key];
+        if(value instanceof Array) {
+          const newvalue = [];
+          for(const item of value) {
+            const newitem = { };
+            for(const key of params as string[]) if(item[key]) {
+              newitem[key] = value[key];
+            }
+            newvalue.push(newitem);
           }
-          newvalue.push(newitem);
+          value = newvalue;
+
+        } else if(typeof value === 'object' && value != null) {
+
+          const newvalue = { };
+          for(const key of params as string[])
+            if(value[key])
+              newvalue[key] = params[key];
+          value = newvalue;
         }
-        value = newvalue;
         break;
       case 'map':
         if(!(value instanceof Array))
@@ -230,8 +242,8 @@ export function expr<T = any>(initialValue: Value<T> | Value<T>): Datum<T> {
   return makeSelector<T>(new StaticDatum<T>(initialValue)) as any;
 }
 
-export function ensureDatum<T = any>(value: Value<T>): Datum<T> {
+export function ensureDatum<T = any>(value: Value<T>, fork = false): Datum<T> {
   if(value instanceof AbstractDatumPartial)
-    return value as any;
+    return fork ? (value as Datum<T>) : (value as Datum<T>).fork();
   else return expr(value);
 }

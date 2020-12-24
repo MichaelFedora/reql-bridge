@@ -1,6 +1,7 @@
 import { LevelUp } from 'levelup';
 import { EventEmitter } from 'stream';
 import * as sub from 'subleveldown';
+import { ensureDatum } from '../common/static-datum';
 import { resolveValue } from '../common/util';
 import { Value } from '../types';
 
@@ -31,7 +32,7 @@ export async function processStream<T = any, U = T>(stream: EventEmitter,
     stream.on('data', (entry: { key: any; value: any }) => {
       data.push((async () => {
         for(const mod of modifiers) {
-          if(mod.type === 'test' && !mod.exec(entry.value))
+          if(mod.type === 'test' && !await resolveValue(mod.exec(ensureDatum(entry.value, true))))
             return null;
           else if (mod.type === 'transform')
             entry.value = await resolveValue(mod.exec(entry.value));
