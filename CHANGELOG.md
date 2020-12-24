@@ -1,3 +1,10 @@
+# v2.3.0
+- Implement LevelDB
+- More fixes to static datum
+  - use `__proto__` when forking
+  - add some checks for null values
+- remove a console.log from rethink bridge
+
 # v2.2.1
 - Bump package.json version
 

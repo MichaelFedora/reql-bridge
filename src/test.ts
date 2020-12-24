@@ -9,9 +9,6 @@ import {
 } from './index';
 import { Client } from 'pg';
 import memdown from 'memdown';
-import LevelUp from 'levelup';
-import { processStream } from './level/util';
-import EncodingDown from 'encoding-down';
 
 const level = 'debug';
 const layout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %m' };
@@ -146,9 +143,9 @@ const rootLog = getLogger('root');
 (async () => {
   const errored = [];
   for(const [create, log] of [
-    // [createSQLite3Database, 'sqlite3'],
-    // [() => createPostgresDatabase({ client: new Client({ user: 'bobtest', password: 'keyboardcat', database: 'test' }) }), 'pg'],
-    // [() => createRethinkDatabase({ host: '127.0.0.1', port: 28015, db: 'reql_bridge_test' }), 'rethink'],
+    [createSQLite3Database, 'sqlite3'],
+    [() => createPostgresDatabase({ client: new Client({ user: 'bobtest', password: 'keyboardcat', database: 'test' }) }), 'pg'],
+    [() => createRethinkDatabase({ host: '127.0.0.1', port: 28015, db: 'reql_bridge_test' }), 'rethink'],
     [() => createLevelDatabase({ store: memdown() }), 'level']
   ] as [() => Promise<Database>, string][]) {
     if(await test(create, log).catch(e => { rootLog.error(e); return true; }))
